@@ -51,7 +51,7 @@ export function updateMeteors(G, dt) {
     const m = meteors[i];
     if (!m.active) continue;
     m.t += dt;
-    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y, m.own); }
+    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y); }
   }
 }
 
@@ -71,7 +71,7 @@ function noteKill(x, y) {
 }
 
 /** 폭발 판정 + 보상 + 연출 */
-export function explode(G, x, y, onPlayer) {
+export function explode(G, x, y) {
   const R = G.meteorRadius, R2 = R * R, power = G.meteorPower, edge = MC.edgeDamage;
   const SR = R * MC.shockRange, SR2 = SR * SR, imp = MC.shockImpulse;
   const g = grid, cs = g.cs, cols = g.cols, start = g.start, items = g.items;
@@ -137,9 +137,9 @@ export function explode(G, x, y, onPlayer) {
     else if (r < IC.potionChance + IC.magnetChance) dropItem(ITEM_MAGNET, ix, iy);
   }
 
-  // 법사: 폭발 순간 반경 안이면 대시 중이어도 피해(쉴드는 1회 막음). 법사에게 떨어지는 메테오는 법사를 다치게 하지 않음
+  // 법사: 폭발 순간 반경 안이면 대시 중이어도 피해(쉴드는 1회 막음). 반경 바로 바깥이면 아슬아슬 보너스
   const p = G.player;
-  if (p.alive && !onPlayer) {
+  if (p.alive) {
     const dx = p.x - x, dy = p.y - y, d = Math.sqrt(dx * dx + dy * dy);
     if (d < R) {
       G.hurtPlayer(MC.selfDamage, 'meteor');

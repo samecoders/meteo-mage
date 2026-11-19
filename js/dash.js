@@ -5,7 +5,11 @@ import { addAfterimage } from './render/effects.js';
 
 const D = CONFIG.dash;
 
-export function dashDistance(p) { return D.distance * (1 + D.upgradePct * p.dashLevel); }
+/** 대시 거리. 범위 카드로 메테오 반경이 커지면 같은 비율로 늘어남(중앙에서 대시 한 번이면 항상 반경 밖으로) */
+export function dashDistance(p, G) {
+  const grow = G && D.scaleWithMeteor ? Math.max(1, G.meteorRadius / CONFIG.meteor.radius) : 1;
+  return D.distance * (1 + D.upgradePct * p.dashLevel) * grow;
+}
 export function isDashing(p) { return p.dashT > 0; }
 
 function dir(G, input, out) {
@@ -22,7 +26,7 @@ const tmp = [0, 0];
 export function dashPreview(G, input, out) {
   const p = G.player;
   dir(G, input, tmp);
-  const d = dashDistance(p);
+  const d = dashDistance(p, G);
   out[0] = p.x + tmp[0] * d; out[1] = p.y + tmp[1] * d;
   return out;
 }
@@ -34,7 +38,7 @@ export function tryDash(G, input) {
   p.dashCharges--;
   p.dashDx = tmp[0]; p.dashDy = tmp[1];
   p.dashT = D.duration;
-  p.dashSpeed = dashDistance(p) / D.duration;
+  p.dashSpeed = dashDistance(p, G) / D.duration;
   p.ghostT = 0;
   if (Math.abs(tmp[0]) > 0.05) p.flip = tmp[0] < 0 ? 1 : 0;
   p.faceX = tmp[0]; p.faceY = tmp[1];

@@ -111,7 +111,7 @@ const nearOffs = [];
 function hurtPlayer(dmg, src) {
   const p = G.player;
   if (!p.alive || G.bench || G.god || p.invuln > 0) return;   // G.god: 콘솔 테스트 전용
-  if (CONFIG.meteor.castGuard && castingOnPlayer()) return;  // 법사에게 메테오가 떨어지는 중: 보호막(몹이 모여들게 밀쳐내지도 않음)
+  if (src !== 'meteor' && CONFIG.meteor.castGuard && castingOnPlayer()) return;  // 메테오가 떨어지는 중: 몹에게는 안 다침(밀쳐내지도 않아 몹이 모여듦). 자기 메테오는 피해야 함
   if (p.shield) {
     const S = CONFIG.shop;
     p.shield = false;

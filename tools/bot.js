@@ -36,7 +36,7 @@ export function runGame({ seed = 1, maxSec = 600, overrides = null, skill = 0.8 
   newGame({ seed });
   const p = G.player;
   const inp = { mx: 0, my: 0 };
-  const st = { rot: (seed & 1) ? 1 : -1, think: 0, meteors: 0, dashes: 0, hits: 0, lx: 1, ly: 0, full: 0, need: globalThis.__botNeed ?? 0 };
+  const st = { rot: (seed & 1) ? 1 : -1, think: 0, meteors: 0, dashes: 0, hits: 0, lx: 1, ly: 0, full: 0, need: globalThis.__botNeed ?? 0, escT: globalThis.__botEscT ?? (0.2 + (1 - skill) * 0.3) };
   const firstHit = {};
   const frames = maxSec * 60, dt = 1 / 60;
   const thinkEvery = Math.max(1, Math.round(6 - skill * 4));   // 실력이 낮을수록 늦게 반응
@@ -141,19 +141,39 @@ function think(st, inp, skill) {
     if (d < 220 && close === 0) { mx += dx / d * 0.8; my += dy / d * 0.8; }
   }
   const ml = Math.hypot(mx, my) || 1;
-  const casting = CONFIG.meteor.target === 'center' && meteors.some((m) => m.active && m.own);
-  const lure = casting ? 0 : CONFIG.meteor.target === 'center' && G.mana >= CONFIG.mana.max ? 0.35 : 1;   // 메테오 준비되면 천천히, 떨어지는 중엔 멈춰서 몹을 모음
-  inp.mx = mx / ml * lure; inp.my = my / ml * lure;
+  // 자기 메테오(중앙): 떨어지는 동안 멈춰서 몹을 모으다가, 떨어지기 직전에 반경 밖으로 대시(대시가 없으면 미리 걸어서)
+  let casting = false, escDx = 0, escDy = 0, escDash = false, escWalk = false;
+  if (CONFIG.meteor.target === 'center') {
+    const R = G.meteorRadius + 25, spd = CONFIG.player.speed;
+    for (let i = 0; i < meteors.length; i++) {
+      const m = meteors[i];
+      if (!m.active || !m.own) continue;
+      const dx = p.x - m.x, dy = p.y - m.y, d = Math.hypot(dx, dy);
+      if (d >= R) continue;
+      casting = true;
+      const rem = m.fall - m.t;
+      const ax = d > 1 ? dx / d : mx, ay = d > 1 ? dy / d : my;          // 중심에서 바깥쪽(겹치면 한산한 쪽)
+      escDx = ax * 0.7 + mx * 0.3; escDy = ay * 0.7 + my * 0.3;
+      if (p.dashCharges >= 1 && p.dashT <= 0) { if (rem <= st.escT) escDash = true; }
+      else if (rem * spd * 0.85 <= R - d + spd * 0.15) escWalk = true;
+    }
+  }
+  if (escDash || escWalk) { const l = Math.hypot(escDx, escDy) || 1; inp.mx = escDx / l; inp.my = escDy / l; }
+  else {
+    const lure = casting ? 0 : CONFIG.meteor.target === 'center' && G.mana >= CONFIG.mana.max ? 0.35 : 1;   // 메테오 준비되면 천천히, 떨어지는 중엔 멈춰서 몹을 모음
+    inp.mx = mx / ml * lure; inp.my = my / ml * lure;
+  }
+  if (escDash && tryDash(G, inp)) st.dashes++;
 
   // 위험하면 대시(가장 덜 붐빈 쪽으로)
-  if (!casting && close >= 3 && p.dashCharges >= 1 && p.dashT <= 0) { if (tryDash(G, inp)) st.dashes++; }
+  if (!casting && !(CONFIG.meteor.target === 'center' && G.mana >= CONFIG.mana.max * 0.8) && close >= 3 && p.dashCharges >= 1 && p.dashT <= 0) { if (tryDash(G, inp)) st.dashes++; }
 
   // 상점
   if (!p.shield && G.stats.gold >= shieldPrice(G)) buyShield(G);
   else if (p.dashLevel < CONFIG.dash.maxUpgrades && G.stats.gold >= dashPrice(G) * 2) buyDash(G);
 
   // 메테오: 마력이 차면 반경 바깥 고리 안에서 가장 빽빽한 곳을, 몹이 올 쪽으로 당겨서 조준
-  if (G.mana >= CONFIG.mana.max && CONFIG.meteor.target === 'center') {
+  if (G.mana >= CONFIG.mana.max && CONFIG.meteor.target === 'center' && p.dashCharges >= 1) {   // 탈출용 대시가 있을 때만 발사
     // 중앙(법사 자리) 메테오: 반경 안에 몹이 충분히 모이면(또는 오래 기다렸으면) 사용
     st.full = (st.full || 0) + 1;
     const R = G.meteorRadius * 0.85, rc = Math.ceil(R / cs);
@@ -164,7 +184,7 @@ function think(st, inp, skill) {
     }
     const waitFrames = 60 * 6 / Math.max(1, Math.round(6 - skill * 4));
     if ((inR >= st.need || st.full > waitFrames) && queueTap(p.x, p.y)) { st.meteors++; st.full = 0; }
-  } else if (G.mana >= CONFIG.mana.max) {
+  } else if (G.mana >= CONFIG.mana.max && CONFIG.meteor.target !== 'center') {
     const R = G.meteorRadius, minD = R + 60, maxD = R + 420;
     const rc = Math.min(22, Math.ceil(maxD / cs));
     let best = 0, bu = 0, bv = 0;

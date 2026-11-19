@@ -137,6 +137,7 @@ export const CONFIG = {
     duration: 0.15,
     cooldown: 4,
     upgradePct: 0.2,       // 대시 강화 1단계당 거리 +20%
+    scaleWithMeteor: true, // 범위 카드로 메테오 반경이 커진 만큼 대시 거리도 늘어남(자기 메테오에서 항상 탈출 가능)
     maxUpgrades: 5,
     afterimages: 4,
   },
@@ -163,9 +164,9 @@ export const CONFIG = {
     rangeCardPct: 0.15,
     powerCardPct: 0.30,
     twinDelay: 0.5,
-    target: 'center',      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐, 법사는 피해 없음 / 'tap': 탭한 자리
-    castGuard: true,       // target 'center': 메테오가 떨어지는 동안 법사는 피해·밀쳐내기 없음(몹이 모여들어 한꺼번에 터짐)
-    selfDamage: 50,        // target 'tap' 일 때만: 자기 메테오 폭발에 휘말렸을 때 피해(대시로 피할 수 없음)
+    target: 'center',      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 / 'tap': 탭한 자리
+    castGuard: true,       // target 'center': 메테오가 떨어지는 동안 몹에게는 안 다치고 밀쳐내지도 않음(몹이 모여듦). 자기 메테오 피해는 그대로
+    selfDamage: 50,        // 자기 메테오 폭발에 휘말렸을 때 피해. 대시 중이어도 맞음 → 떨어지기 전에 반경 밖으로 대시(거리 140 > 반경 120)
     shockRange: 1.7,       // 반경 × 이 값까지 충격파로 밀어냄
     shockImpulse: 300,
     fireDuration: 3,
