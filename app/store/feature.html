@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Google Play 그래픽 이미지(1024×500). scripts/screenshots.mjs 가 ?lang=ko|en 으로 열어 찍는다. -->
+<style>
+  :root { --yellow: #ffcd75; --red: #b13e53; }
+  html, body { margin: 0; width: 1024px; height: 500px; overflow: hidden; background: #1a1c2c; }
+  body { position: relative; font-family: system-ui, "Segoe UI", "Malgun Gothic", sans-serif; color: #f4f4f4; }
+  #bg { position: absolute; inset: 0; width: 1024px; height: 500px; image-rendering: pixelated; }
+  .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,8,20,.82) 0%, rgba(10,8,20,.55) 45%, rgba(10,8,20,0) 75%); }
+  .box { position: absolute; left: 56px; top: 50%; transform: translateY(-50%); width: 520px; }
+  h1 { margin: 0; font-size: 92px; font-weight: 900; color: var(--yellow); line-height: 1.05; letter-spacing: 1px;
+    text-shadow: 6px 0 0 var(--red), -6px 0 0 var(--red), 0 6px 0 var(--red), 0 -6px 0 var(--red), 10px 10px 0 #000; }
+  p { margin: 22px 0 0; font-size: 30px; font-weight: 800; text-shadow: 3px 3px 0 #000; }
+  .icon { position: absolute; right: 48px; bottom: 40px; width: 150px; height: 150px; image-rendering: pixelated; border: 4px solid #000; box-shadow: 6px 6px 0 #000; }
+</style>
+</head>
+<body>
+<img id="bg" src="./screenshots/ko/2_horde.png" alt="">
+<div class="shade"></div>
+<div class="box"><h1 id="t"></h1><p id="s"></p></div>
+<img class="icon" src="../../image/icon-512.png" alt="">
+<script>
+  const T = {
+    ko: ['메테오 법사', '몹을 끌어모아, 하늘을 떨어뜨려라.'],
+    en: ['Meteor Mage', 'Lure the horde. Drop the sky.'],
+  };
+  const lang = new URLSearchParams(location.search).get('lang') || 'ko';
+  const [t, s] = T[lang] || T.ko;
+  document.getElementById('t').textContent = t;
+  document.getElementById('s').textContent = s;
+  // 게임 화면(1080×1920)에서 몹이 빽빽한 가운데 띠를 잘라 배경으로
+  const bg = document.getElementById('bg');
+  bg.style.objectFit = 'cover';
+  bg.style.objectPosition = '50% 42%';
+</script>
+</body>
+</html>

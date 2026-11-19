@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.samecoders.meteormage",
+  "appName": "Meteor Mage",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#000000"
+  }
+}

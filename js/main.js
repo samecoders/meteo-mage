@@ -343,6 +343,7 @@ async function boot() {
     debug: DEBUG,
   });
 
+  setupNativeApp();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { pause(); suspendAudio(true); }
     else { suspendAudio(false); last = performance.now(); }
@@ -362,3 +363,19 @@ function runShop(kind) {
 }
 
 boot().catch((e) => { console.error(e); UI.fatal(String(e && e.stack || e)); });
+
+// ------------------------------------------------------------ 앱(Capacitor) 전용: 웹에서는 아무것도 안 함
+function setupNativeApp() {
+  try {
+    const Cap = window.Capacitor;
+    if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
+    document.documentElement.classList.add('native');
+    const App = (Cap.Plugins && Cap.Plugins.App) || (Cap.registerPlugin && Cap.registerPlugin('App'));
+    if (!App) return;
+    App.addListener('backButton', () => {
+      if (G.mode === 'play' && G.player.alive) { pause(); return; }   // 게임 중: 일시정지
+      if (G.mode === 'intro') return;
+      if (!UI.handleBack()) App.exitApp();                           // 타이틀: 앱 종료
+    });
+  } catch (e) { console.warn('native setup failed', e); }            // 앱 기능이 안 돼도 게임은 계속
+}

@@ -73,6 +73,17 @@ export function showScreen(name) {
   if (name === 'rank') openRank(rankScope);
   requestAnimationFrame(() => fitAll(name ? $(SCREENS[name]) : document));
 }
+/** 안드로이드 뒤로 버튼: 화면마다 '뒤로'에 해당하는 버튼을 누름. 처리 못 하면(타이틀) false → 앱 종료 */
+const BACK_BTN = { rank: 'rBack', shop: 'sBack', settings: 'stBack', pause: 'pResume', over: 'oTitle' };
+export function handleBack() {
+  if (current === 'title') return false;
+  if (current === 'level' || current === 'nick') return true;      // 카드 선택·이름 정하기는 뒤로로 건너뛰지 않음
+  const id = BACK_BTN[current];
+  if (id) $(id).click();
+  return true;
+}
+export function screenName() { return current; }
+
 export function showHud(on) {
   $('hud').classList.toggle('hidden', !on);
   if (on) { lastHud = {}; requestAnimationFrame(() => fitAll($('hud'))); }

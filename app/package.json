@@ -1,0 +1,25 @@
+{
+  "name": "meteor-mage-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "메테오 법사 안드로이드 앱 (Capacitor). 게임 파일은 상위 폴더에서 www/ 로 복사해 넣는다.",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.mjs",
+    "sync": "node scripts/copy-web.mjs && cap sync android",
+    "icons": "capacitor-assets generate --android --iconBackgroundColor \"#1a1c2c\" --splashBackgroundColor \"#000000\"",
+    "apk": "npm run sync && cd android && gradlew.bat assembleDebug",
+    "bundle": "npm run sync && cd android && gradlew.bat bundleRelease",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.2",
+    "puppeteer-core": "25.16"
+  }
+}
