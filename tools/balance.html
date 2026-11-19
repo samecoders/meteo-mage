@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balance — 메테오 법사 자동 플레이 측정</title>
+<style>
+  body { margin: 0; padding: 16px; background: #1a1c2c; color: #f4f4f4; font: 14px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  label { display: inline-flex; gap: 6px; align-items: center; margin: 4px 12px 4px 0; }
+  input { width: 90px; font: inherit; background: #000; color: #fff; border: 2px solid #f4f4f4; padding: 2px 6px; }
+  input.wide { width: 220px; }
+  button { font: inherit; font-weight: 700; padding: 6px 14px; background: #e04040; color: #fff; border: 3px solid #fff; cursor: pointer; }
+  table { border-collapse: collapse; margin-top: 12px; font-variant-numeric: tabular-nums; }
+  td, th { border: 1px solid #566c86; padding: 3px 8px; text-align: right; }
+  th { background: #29366f; }
+  td.l { text-align: left; }
+  #status { margin-top: 8px; color: #73eff7; }
+</style>
+</head>
+<body>
+<h1>자동 플레이 밸런스 측정</h1>
+<div>봇이 실제 게임 규칙(js/)으로 화면 없이 한 판을 끝까지 플레이합니다. 박쥐 속도 등 몹 속도를 바꿔 가며 생존 시간·피해 원인을 비교하세요.
+  결과가 좋으면 같은 값을 <code>js/config.js</code> 에 적으면 됩니다.</div>
+<div style="margin-top:8px">
+  <label>판 수(시드) <input id="seeds" value="4"></label>
+  <label>최대 시간(초) <input id="maxSec" value="600"></label>
+  <label>봇 실력 0~1 <input id="skill" value="0.8"></label>
+  <label>박쥐 속도 목록 <input id="bats" class="wide" value="108, 130, 150"></label>
+  <button id="run">실행</button>
+</div>
+<div id="status"></div>
+<table id="out"></table>
+<script type="module">
+import { runGame } from './bot.js';
+
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** 여러 설정 × 여러 시드 실행. variants: [{ name, overrides }] */
+async function runBatch(variants, seeds, maxSec, skill, onRow) {
+  const rows = [];
+  for (const v of variants) {
+    const runs = [];
+    for (let s = 1; s <= seeds; s++) {
+      $('status').textContent = `${v.name} · 시드 ${s}/${seeds} 실행 중…`;
+      await sleep(10);
+      runs.push(runGame({ seed: s * 7919, maxSec, overrides: v.overrides, skill }));
+    }
+    const avg = (k) => runs.reduce((a, r) => a + r[k], 0) / runs.length;
+    const dmg = {};
+    for (const r of runs) for (const k in r.dmgTaken) dmg[k] = (dmg[k] || 0) + r.dmgTaken[k] / runs.length;
+    const deaths = {};
+    for (const r of runs) if (r.died) deaths[r.deathBy] = (deaths[r.deathBy] || 0) + 1;
+    const row = {
+      name: v.name, survived: avg('survived'), kills: avg('kills'), level: avg('level'), meteors: avg('meteors'),
+      hits: avg('hits'), deaths, dmg, runs,
+    };
+    rows.push(row);
+    if (onRow) onRow(row);
+  }
+  $('status').textContent = '완료';
+  return rows;
+}
+window.runBatch = runBatch;
+window.runGame = runGame;
+
+function render(rows) {
+  const t = $('out');
+  t.innerHTML = '<tr><th>설정</th><th>평균 생존(초)</th><th>킬</th><th>레벨</th><th>메테오</th><th>피격 횟수</th><th class="l">사망 원인</th><th class="l">받은 피해(평균)</th></tr>';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const dmg = Object.entries(r.dmg).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join(', ');
+    const deaths = Object.entries(r.deaths).map(([k, v]) => `${k}×${v}`).join(', ') || '-';
+    tr.innerHTML = `<td class="l">${r.name}</td><td>${r.survived.toFixed(0)}</td><td>${Math.round(r.kills).toLocaleString()}</td><td>${r.level.toFixed(1)}</td><td>${r.meteors.toFixed(0)}</td><td>${r.hits.toFixed(0)}</td><td class="l">${deaths}</td><td class="l">${dmg}</td>`;
+    t.appendChild(tr);
+  }
+}
+
+$('run').addEventListener('click', async () => {
+  const bats = $('bats').value.split(',').map((x) => +x.trim()).filter((x) => x > 0);
+  const variants = bats.map((s) => ({ name: `박쥐 ${s}`, overrides: { bat: { speed: s } } }));
+  const all = [];
+  await runBatch(variants, +$('seeds').value, +$('maxSec').value, +$('skill').value, (row) => { all.push(row); render(all); });
+});
+</script>
+</body>
+</html>

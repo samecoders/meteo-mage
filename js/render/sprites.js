@@ -1,0 +1,232 @@
+// 프레임마다 인스턴스 배치 채우기. 몹 전체는 하나의 타입 배열 → 인스턴스 드로우 한 번.
+// 좌표 변환: 내부 픽셀 = 월드 × 0.5 - (화면 좌상단 월드 픽셀). 반올림은 셰이더에서.
+import { CONFIG } from '../config.js';
+import { SpriteBatch, ShapeBatch } from './gl.js';
+import { M, B } from '../sim/mobs.js';
+import { O } from '../orbs.js';
+import { meteors, fires } from '../meteor.js';
+import { SPR, FACE_LEFT } from '../assets.js';
+import { items, fireballs } from '../items.js';
+import { pal } from '../skins.js';
+import { fillCraters, fillCorpses, fillAfterimages, fillParticles, fillRings, fillSpriteFx, addParticle, particleRoom, getQualityLevel } from './effects.js';
+
+export const batches = {
+  mobs: null,
+  decor: new SpriteBatch(1024),   // 장식물·마력 구슬 (몹 아래)
+  top: new SpriteBatch(4096),
+  under: new ShapeBatch(2048),
+  parts: new ShapeBatch(4600),
+  over: new ShapeBatch(512),
+};
+export function allocBatches(cap) { batches.mobs = new SpriteBatch(cap); }
+
+const RED = pal(22), DARK = pal(1), WHITE = pal(31), CYAN = pal(12), BLUE = pal(11), ORANGE = pal(23), YELLOW = pal(24), INK = pal(28);
+const GHOST_FLAG = new Uint8Array(CONFIG.mobs.types.map((t) => (t.ghost ? 16 : 0)));
+const BOSS_SPR = CONFIG.boss.kinds.map((k) => SPR[k.sprite]);
+const ITEM_SPR = [SPR.item_potion, SPR.item_magnet, SPR.item_chest];
+const DECOR_SPR = CONFIG.decor.kinds.map((k) => SPR[k]);
+export const HERO_SPR = { mage: SPR.mage, apprentice: SPR.hero_apprentice, pyromancer: SPR.hero_pyromancer, icewitch: SPR.hero_icewitch, necromancer: SPR.hero_necromancer };
+
+/** 몹: 보간 위치 + 화면 밖 제외 */
+export function fillMobs(V, alpha, plx) {
+  const b = batches.mobs;
+  const f32 = b.f32, u32 = b.u32;
+  const n = M.n, X = M.x, Y = M.y, PX = M.px, PY = M.py, TY = M.type, PH = M.phase, FL = M.flash;
+  const left = V.left, top = V.top, maxX = V.iw + 20, maxY = V.ih + 20;
+  const scaleBits = (1 << 24) >>> 0;
+  let o = 0;
+  for (let i = 0; i < n; i++) {
+    const px = PX[i], py = PY[i];
+    const wx = px + (X[i] - px) * alpha;
+    const sx = wx * 0.5 - left;
+    if (sx < -20 || sx > maxX) continue;
+    const sy = (py + (Y[i] - py) * alpha) * 0.5 - top;
+    if (sy < -20 || sy > maxY) continue;
+    f32[o] = sx; f32[o + 1] = sy;
+    const t = TY[i];
+    const flags = 4 | (wx > plx ? 1 : 0) | (FL[i] ? 2 : 0) | GHOST_FLAG[t];
+    u32[o + 2] = (t | (flags << 8) | (PH[i] << 16) | scaleBits) >>> 0;
+    o += 3;
+  }
+  b.count = o / 3;
+}
+
+// 장식물 위치: 월드 칸마다 정수 해시로 결정(무한 평원, 저장 불필요)
+function hash2(x, y) {
+  let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/** 몹 아래: 평원 장식물 + 마력 구슬(보석) */
+export function fillDecor(V, time) {
+  const b = batches.decor;
+  b.reset();
+  const D = CONFIG.decor, ch = D.chunk;
+  const x0 = Math.floor((V.left * 2 - 80) / ch), x1 = Math.floor(((V.left + V.iw) * 2 + 80) / ch);
+  const y0 = Math.floor((V.top * 2 - 80) / ch), y1 = Math.floor(((V.top + V.ih) * 2 + 80) / ch);
+  const lim = (D.chance * 65536) | 0;
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const h = hash2(cx, cy);
+      if ((h & 0xffff) >= lim) continue;
+      const k = DECOR_SPR[(h >>> 16) % DECOR_SPR.length];
+      const wx = cx * ch + ((h >>> 8) & 0xff) / 255 * ch, wy = cy * ch + ((h >>> 20) & 0xff) / 255 * ch;
+      b.push(wx * 0.5 - V.left, wy * 0.5 - V.top, k, (h >>> 31) & 1, 0, 1, 0);
+    }
+  }
+  const gem = SPR.item_expgem;
+  for (let i = 0; i < O.n; i++) {
+    const sx = O.x[i] * 0.5 - V.left, sy = O.y[i] * 0.5 - V.top;
+    if (sx < -10 || sy < -10 || sx > V.iw + 10 || sy > V.ih + 10) continue;
+    if (O.life[i] < 5 && ((time * 8) | 0) % 2) continue;
+    // 담긴 마력이 많을수록 크게(정수 배율)
+    b.push(sx, sy - (((time * 3 + i * 0.37) % 1) < 0.5 ? 1 : 0), gem, 0, 0, O.v[i] >= 12 ? 2 : 1, 0);
+  }
+}
+
+/** 위에 그리는 스프라이트: 잔해 → 아이템 → 보스 → 불덩이 → 잔상 → 법사 → 이펙트 → 떨어지는 메테오 */
+export function fillTop(V, alpha, G, time) {
+  const b = batches.top;
+  b.reset();
+  fillCorpses(b, V);
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.active) continue;
+    if (it.life < 5 && ((time * 8) | 0) % 2) continue;
+    b.push(it.x * 0.5 - V.left, it.y * 0.5 - V.top - (((time * 2) % 1) < 0.5 ? 1 : 0), ITEM_SPR[it.kind], 0, 0, 1, 0);
+  }
+  for (let i = 0; i < B.length; i++) {
+    const o = B[i];
+    if (!o.active) continue;
+    const wx = o.px + (o.x - o.px) * alpha, wy = o.py + (o.y - o.py) * alpha;
+    const spr = BOSS_SPR[o.kind];
+    const flip = (wx > G.player.x ? 1 : 0) ^ FACE_LEFT[spr];
+    b.push(wx * 0.5 - V.left, wy * 0.5 - V.top, spr, flip | (o.flash ? 2 : 0) | 4, o.phase, 1, 0);
+  }
+  for (let i = 0; i < fireballs.length; i++) {
+    const f = fireballs[i];
+    if (!f.active) continue;
+    const wx = f.px + (f.x - f.px) * alpha, wy = f.py + (f.y - f.py) * alpha;
+    b.push(wx * 0.5 - V.left, wy * 0.5 - V.top, SPR.meteor_fire, f.vx > 0 ? 1 : 0, 0, 1, 0);
+  }
+  const hero = HERO_SPR[G.hero] ?? SPR.mage;
+  fillAfterimages(b, V, hero);
+  const p = G.player;
+  if (p.alive) {
+    const blink = p.invuln > 0 && ((time * 12) | 0) % 2 === 0;
+    if (!blink) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, hero, p.flip | ((Math.abs(p.vx) + Math.abs(p.vy) > 20) ? 4 : 0), 0, 1, 0);
+  }
+  fillSpriteFx(b, V, p.x, p.y);
+  const spr = SPR[G.skin.sprite];
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active || m.t < 0) continue;
+    const f = Math.min(1, m.t / m.fall), h = (1 - f) * 760;
+    b.push((m.x + h * 0.55) * 0.5 - V.left, (m.y - h) * 0.5 - V.top, spr, 0, 0, 2, 0);
+  }
+}
+
+/** 땅 위 도형: 크레이터, 화염 지대, 구슬, 낙하 그림자, 목표 원, 대시 미리보기 */
+export function fillUnder(V, G, time, dashPrev) {
+  const b = batches.under;
+  b.reset();
+  const q = getQualityLevel();
+  fillCraters(b, V);
+  for (let i = 0; i < fires.length; i++) {
+    const z = fires[i];
+    if (!z.active) continue;
+    const sx = z.x * 0.5 - V.left, sy = z.y * 0.5 - V.top;
+    const d = Math.min(1, z.t / 1.0);
+    b.push(sx, sy, z.r * 0.5, 0, pal(3), 0, (90 * d) | 0, 0, 0);
+    b.push(sx, sy, z.r * 0.5, 2, ORANGE, 2, (220 * d) | 0, 18, ((time * 60) | 0) & 255);
+  }
+  const R = G.meteorRadius * 0.5;
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active) continue;
+    const sx = m.x * 0.5 - V.left, sy = m.y * 0.5 - V.top;
+    const f = Math.max(0, m.t / m.fall);
+    if (CONFIG.effects.shadows[q] && m.t >= 0) b.push(sx, sy, R * (0.12 + 0.4 * f), 0, DARK, 0, (70 + 140 * f) | 0, 0, 0);
+    b.push(sx, sy, R, 2, RED, 2, 255, 24, ((time * 40) | 0) & 255);
+    if (m.t >= 0) b.push(sx, sy, R * f, 1, RED, 1, 120, 0, 0);
+  }
+  if (dashPrev) {
+    const p = G.player;
+    const x0 = p.x * 0.5 - V.left, y0 = p.y * 0.5 - V.top, x1 = dashPrev[0] * 0.5 - V.left, y1 = dashPrev[1] * 0.5 - V.top;
+    const len = Math.hypot(x1 - x0, y1 - y0), steps = Math.max(1, (len / 6) | 0);
+    for (let k = 1; k <= steps; k++) b.push(x0 + (x1 - x0) * k / steps, y0 + (y1 - y0) * k / steps, 1, 0, WHITE, 3, 150, 0, 0);
+    b.push(x1, y1, 7, 1, WHITE, 2, 160, 8, ((time * 80) | 0) & 255);
+  }
+}
+
+export function fillParticlesBatch(V) {
+  const b = batches.parts;
+  b.reset();
+  fillParticles(b, V);
+}
+
+/** 위에 덮는 도형: 충격파 링, 섬광, 쉴드, 보스 체력 막대 */
+export function fillOver(V, G, time, alpha) {
+  const b = batches.over;
+  b.reset();
+  fillRings(b, V);
+  const p = G.player;
+  if (p.alive && p.shield) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, 19, 1, CYAN, 2, 200, 10, ((time * 50) | 0) & 255);
+  // 무리 속에서도 법사가 보이게: 발밑 표시 고리(그림만) + 체력이 깎였으면 머리 위 체력 막대
+  if (p.alive) {
+    const pulse = ((time * 4) | 0) % 2;
+    const sx = p.x * 0.5 - V.left, sy = p.y * 0.5 - V.top;
+    b.push(sx, sy + 12, 9 + pulse, 1, YELLOW, 1, 255, 0, 0);
+    if (p.hp < p.maxHp) {
+      const w = 12, f = Math.max(0, p.hp / p.maxHp);
+      b.push(sx, sy - 22, w + 1, 2, INK, 4, 255, 0, 0);
+      b.push(sx - w + w * f, sy - 22, w * f, 1, f < 0.3 ? RED : pal(7), 4, 255, 0, 0);
+    }
+  }
+  for (let i = 0; i < B.length; i++) {
+    const o = B[i];
+    if (!o.active) continue;
+    const wx = o.px + (o.x - o.px) * alpha, wy = o.py + (o.y - o.py) * alpha;
+    const sx = wx * 0.5 - V.left, sy = wy * 0.5 - V.top - 34;
+    const w = 18, f = Math.max(0, o.hp / o.maxHp);
+    b.push(sx, sy, w + 1, 2, INK, 4, 255, 0, 0);
+    b.push(sx - w + w * f, sy, w * f, 1, RED, 4, 255, 0, 0);
+  }
+}
+
+/** 프레임마다 시각용 파티클 생성(메테오 꼬리, 화염) — 게임 규칙과 무관 */
+export function emitVisuals(G, dt) {
+  if (dt <= 0) return;
+  const sk = G.skin;
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active || m.t < 0) continue;
+    const f = Math.min(1, m.t / m.fall), h = (1 - f) * 760;
+    const x = m.x + h * 0.55, y = m.y - h;
+    const n = Math.min(particleRoom(), 4);
+    for (let k = 0; k < n; k++) {
+      addParticle(x + (Math.random() - 0.3) * 16, y + (Math.random() - 0.7) * 16, 140 + Math.random() * 80, -220 - Math.random() * 120,
+        0.25 + Math.random() * 0.3, pal(sk.trail[(Math.random() * sk.trail.length) | 0]), 2 + (Math.random() * 3 | 0), 0);
+    }
+  }
+  for (let i = 0; i < fireballs.length; i++) {
+    const f = fireballs[i];
+    if (!f.active) continue;
+    const n = Math.min(particleRoom(), 2);
+    for (let k = 0; k < n; k++) {
+      addParticle(f.x + (Math.random() - 0.5) * 14, f.y + (Math.random() - 0.5) * 14, -f.vx * 0.2, -f.vy * 0.2,
+        0.3 + Math.random() * 0.2, pal(Math.random() < 0.5 ? 23 : 22), 2, 0);
+    }
+  }
+  for (let i = 0; i < fires.length; i++) {
+    const z = fires[i];
+    if (!z.active) continue;
+    const n = Math.min(particleRoom(), 3);
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * z.r;
+      addParticle(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, 0, -30 - Math.random() * 40, 0.4 + Math.random() * 0.4,
+        pal(Math.random() < 0.5 ? 23 : 24), 2, -20);
+    }
+  }
+}

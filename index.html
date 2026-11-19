@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1c2c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <title>Meteor Mage</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:,">
+  <link rel="apple-touch-icon" href="image/icon-512.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <div id="touch"></div>
+  <div id="joyBase"></div>
+  <div id="joyKnob"></div>
+
+  <!-- ====================== 게임 HUD ====================== -->
+  <div id="hurtFlash"></div>
+  <div id="hud" class="hidden">
+    <div id="hudTop">
+      <div id="hudKills"><img id="icoKills" class="hico hidden" alt=""><span id="hudKillsN">0</span></div>
+      <div id="hudTimeRow"><img id="icoTime" class="hico s hidden" alt=""><b id="hudTime">0:00</b></div>
+      <div id="hudField"><span data-i18n="hud.field"></span> <b id="hudMobs">0</b></div>
+      <div id="hudLevel"><span id="hudLv">Lv.1</span><div class="bar"><div id="hudExp"></div></div></div>
+      <div id="hudHp"><img id="icoHeart" class="hico s hidden" alt=""><div class="bar"><div id="hudHpBar"></div></div><b id="hudHpN">100</b></div>
+      <div id="hudGold"><i class="coin"></i><b id="hudGoldN">0</b></div>
+    </div>
+    <button id="btnPause" class="pix icon" aria-label="pause"><i class="pauseIco"></i></button>
+    <div id="combo"></div>
+    <div id="bossArrows"></div>
+    <div id="popups"></div>
+    <div id="toast"></div>
+    <div id="hudBottom">
+      <div id="shopBtns">
+        <button id="btnShield" class="pix shop">
+          <canvas id="icoShield" width="12" height="12"></canvas><img id="imgShield" class="sico hidden" alt="">
+          <span class="sl fit" data-i18n="shop.shield"></span>
+          <b class="price"><i class="coin"></i><span id="shieldPrice">0</span></b>
+        </button>
+        <button id="btnDashUp" class="pix shop">
+          <canvas id="icoDash" width="12" height="12"></canvas><img id="imgDash" class="sico hidden" alt="">
+          <span class="sl fit"><span data-i18n="shop.dash"></span> <small id="dashLvl">0/5</small></span>
+          <b class="price"><i class="coin"></i><span id="dashPrice">0</span></b>
+        </button>
+      </div>
+      <div id="rightCol">
+        <canvas id="mana" width="40" height="40"></canvas>
+        <button id="btnDash" aria-label="dash"><canvas id="dashCv" width="28" height="28"></canvas></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== 첫 판 안내 ====================== -->
+  <div id="tutorial" class="hidden">
+    <div class="tutBox pixbox">
+      <canvas id="tutCv" width="92" height="44"></canvas>
+      <p id="tutText" class="fit"></p>
+      <small id="tutCount"></small>
+    </div>
+    <div class="tutArrow"></div>
+  </div>
+
+  <!-- ====================== 타이틀 ====================== -->
+  <section id="scrTitle" class="screen hidden">
+    <canvas id="titleBg"></canvas>
+    <div class="titleBox">
+      <h1 class="logo fit" data-i18n="title"></h1>
+      <p class="sub fit" data-i18n="subtitle"></p>
+      <div class="bank"><i class="coin"></i><span data-i18n="bankGold"></span>&nbsp;<b id="titleBank">0</b></div>
+      <button id="tStart" class="pix big fit" data-i18n="start"></button>
+      <button id="tRank" class="pix fit" data-i18n="ranking"></button>
+      <button id="tShop" class="pix fit" data-i18n="meteorShop"></button>
+      <button id="tSettings" class="pix fit" data-i18n="settings"></button>
+      <div id="titleBest"></div>
+    </div>
+  </section>
+
+  <!-- ====================== 레벨업 ====================== -->
+  <section id="scrLevel" class="screen modal hidden">
+    <div class="panel pixbox">
+      <h2><span id="lvTitle"></span> <span id="lvLevel" class="accent"></span></h2>
+      <p id="lvSub" class="fit"></p>
+      <div id="cards"></div>
+    </div>
+  </section>
+
+  <!-- ====================== 일시정지 ====================== -->
+  <section id="scrPause" class="screen modal hidden">
+    <div class="panel pixbox">
+      <h2 data-i18n="paused"></h2>
+      <button id="pResume" class="pix big fit" data-i18n="resume"></button>
+      <button id="pSettings" class="pix fit" data-i18n="settings"></button>
+      <button id="pQuit" class="pix fit" data-i18n="quit"></button>
+    </div>
+  </section>
+
+  <!-- ====================== 결과 ====================== -->
+  <section id="scrOver" class="screen modal hidden">
+    <div class="panel pixbox">
+      <h2 data-i18n="result.title"></h2>
+      <div id="oBest" class="newbest hidden" data-i18n="result.newBest"></div>
+      <div id="oStats"></div>
+      <div id="oBank" class="bankAdd"></div>
+      <div id="oRankStatus" class="status"></div>
+      <button id="oRetry" class="pix big fit" data-i18n="retry"></button>
+      <div class="row2">
+        <button id="oRank" class="pix fit" data-i18n="ranking"></button>
+        <button id="oTitle" class="pix fit" data-i18n="toTitle"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== 랭킹 ====================== -->
+  <section id="scrRank" class="screen hidden">
+    <div class="panel pixbox tall">
+      <h2 data-i18n="ranking"></h2>
+      <div id="rankTabs">
+        <button class="pix small fit" data-scope="today" data-i18n="rank.today"></button>
+        <button class="pix small fit" data-scope="week" data-i18n="rank.week"></button>
+        <button class="pix small fit" data-scope="all" data-i18n="rank.all"></button>
+        <button class="pix small fit" data-scope="country" data-i18n="rank.country"></button>
+      </div>
+      <div id="rankNote" class="status"></div>
+      <div id="rankList"></div>
+      <div id="rankMe" class="status"></div>
+      <button id="rBack" class="pix fit" data-i18n="back"></button>
+    </div>
+  </section>
+
+  <!-- ====================== 메테오 상점 ====================== -->
+  <section id="scrShop" class="screen hidden">
+    <div class="panel pixbox tall">
+      <h2 data-i18n="meteorShop"></h2>
+      <div class="bank"><i class="coin"></i><span data-i18n="bankGold"></span>&nbsp;<b id="shopBank">0</b></div>
+      <div id="shopTabs">
+        <button class="pix small fit" data-tab="meteor" data-i18n="shop.tabMeteor"></button>
+        <button class="pix small fit" data-tab="hero" data-i18n="shop.tabHero"></button>
+      </div>
+      <canvas id="shopPreview" width="160" height="96"></canvas>
+      <p id="shopNote" class="note"></p>
+      <div id="shopGrid"></div>
+      <div id="shopMsg" class="status"></div>
+      <button id="sBack" class="pix fit" data-i18n="back"></button>
+    </div>
+  </section>
+
+  <!-- ====================== 설정 ====================== -->
+  <section id="scrSettings" class="screen hidden">
+    <div class="panel pixbox">
+      <h2 data-i18n="settings"></h2>
+      <label class="set"><span class="fit" data-i18n="settings.language"></span><select id="stLang" class="pix"></select></label>
+      <div class="set"><span class="fit" data-i18n="settings.sound"></span><button id="stSound" class="pix small fit"></button></div>
+      <div class="set"><span class="fit" data-i18n="settings.vibration"></span><button id="stVib" class="pix small fit"></button></div>
+      <label class="set"><span class="fit" data-i18n="settings.quality"></span><select id="stQuality" class="pix"></select></label>
+      <div class="set"><span class="fit" data-i18n="settings.profile"></span><button id="stProfile" class="pix small"><span id="stProfileName"></span></button></div>
+      <button id="stBack" class="pix fit" data-i18n="back"></button>
+    </div>
+  </section>
+
+  <!-- ====================== 닉네임·국가 ====================== -->
+  <section id="scrNick" class="screen modal hidden">
+    <div class="panel pixbox">
+      <h2 data-i18n="nick.title"></h2>
+      <input id="nName" class="pix" maxlength="24" autocomplete="off" spellcheck="false" data-i18n-ph="nick.placeholder">
+      <label class="set col"><span class="fit" data-i18n="nick.country"></span><select id="nCountry" class="pix"></select></label>
+      <div id="nErr" class="err"></div>
+      <button id="nOk" class="pix big fit" data-i18n="ok"></button>
+    </div>
+  </section>
+
+  <pre id="debug" class="hidden"></pre>
+  <div id="fatal" class="hidden"></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

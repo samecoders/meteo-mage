@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelize — 메테오 법사 스프라이트 변환기</title>
+<style>
+  :root { --bg: #1a1c2c; --panel: #29366f; --fg: #f4f4f4; --acc: #ffe040; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+  header { padding: 16px; border-bottom: 4px solid var(--fg); }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  #drop { display: block; margin: 16px; padding: 28px; border: 4px dashed var(--fg); text-align: center; cursor: pointer; }
+  #drop.over { background: rgba(255,255,255,.08); border-color: var(--acc); }
+  .item { margin: 16px; padding: 12px; background: var(--panel); border: 4px solid var(--fg); display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .item .col { flex: 1 1 200px; min-width: 0; }
+  .item canvas, .item img { image-rendering: pixelated; background: repeating-conic-gradient(#555 0 25%, #777 0 50%) 0 0 / 16px 16px; display: block; }
+  .item .orig { max-width: 220px; max-height: 220px; }
+  .col { display: flex; flex-direction: column; gap: 6px; }
+  select, button { font: inherit; font-weight: 700; padding: 6px 10px; background: var(--bg); color: var(--fg); border: 3px solid var(--fg); border-radius: 0; }
+  button { background: #e04040; cursor: pointer; }
+  small { opacity: .8; }
+  .pair { display: flex; gap: 12px; align-items: flex-end; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pixelize — 저해상도 픽셀 스프라이트 변환기</h1>
+  <div>제미나이 등으로 만든 원본을 끌어다 놓으면 게임과 똑같은 변환(마젠타 배경 제거 → 잘라내기 → 최빈색 축소 → 32색 팔레트 → 반투명 제거 → 외곽선)을 거친 결과를 보여 줍니다.
+  파일명을 고르고 <b>PNG 저장</b>을 누른 뒤 <code>image/</code> 폴더에 넣으세요. 가로·세로 128px 이하인 이미지는 이미 도트 그림으로 보고 크기를 바꾸지 않습니다(게임도 같음).</div>
+</header>
+<label id="drop">여기에 이미지를 끌어다 놓거나 눌러서 선택 (여러 장 가능)
+  <input id="file" type="file" accept="image/*" multiple hidden>
+</label>
+<div id="list"></div>
+
+<script type="module">
+import { CONFIG } from '../js/config.js';
+import { pixelize, nativeSprite, scaleCanvas } from '../js/pixel.js';
+
+const S = CONFIG.sprites;
+const names = Object.keys(S);
+const drop = document.getElementById('drop');
+const list = document.getElementById('list');
+
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); handle(e.dataTransfer.files); });
+document.getElementById('file').addEventListener('change', (e) => handle(e.target.files));
+
+function guess(fileName) {
+  const base = fileName.toLowerCase().replace(/\.[a-z0-9]+$/, '');
+  for (const n of names) if (base === n || base === S[n].file.replace(/\.[a-z0-9]+$/, '')) return n;
+  for (const n of names) if (base.includes(n.replace('mob_', '').replace('meteor_', ''))) return n;
+  return names[0];
+}
+
+async function handle(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    await new Promise((r) => { img.onload = r; img.onerror = r; img.src = url; });
+    if (!img.naturalWidth) continue;
+    addItem(f.name, img);
+  }
+}
+
+function addItem(fileName, img) {
+  const box = document.createElement('div');
+  box.className = 'item';
+  const orig = img.cloneNode();
+  orig.className = 'orig';
+  const out = document.createElement('div');
+  out.className = 'pair';
+  const ctl = document.createElement('div');
+  ctl.className = 'col';
+  const sel = document.createElement('select');
+  for (const n of names) { const o = document.createElement('option'); o.value = n; o.textContent = `${S[n].file}  (${S[n].size[0]}×${S[n].size[1]})`; sel.appendChild(o); }
+  sel.value = guess(fileName);
+  const info = document.createElement('small');
+  const btn = document.createElement('button');
+  btn.textContent = 'PNG 저장';
+  ctl.append(Object.assign(document.createElement('b'), { textContent: fileName }), sel, info, btn);
+  box.append(orig, out, ctl);
+  list.prepend(box);
+
+  let result = null;
+  const run = () => {
+    const spec = S[sel.value];
+    const t0 = performance.now();
+    const P = CONFIG.pixel;
+    const native = img.naturalWidth <= P.nativeMax && img.naturalHeight <= P.nativeMax && !spec.exportScale;
+    result = native
+      ? { canvas: nativeSprite(img, P, !spec.tile), converted: false, native: true }   // 이미 도트 그림: 크기 그대로
+      : pixelize(img, { w: spec.size[0], h: spec.size[1], tile: !!spec.tile, P });
+    const ms = performance.now() - t0;
+    out.innerHTML = '';
+    const one = result.canvas;
+    const four = scaleCanvas(one, 4);
+    const lab1 = document.createElement('div'); lab1.append(one, Object.assign(document.createElement('small'), { textContent: '1×' }));
+    const lab4 = document.createElement('div'); lab4.append(four, Object.assign(document.createElement('small'), { textContent: '4×' }));
+    out.append(lab1, lab4);
+    info.textContent = result.native
+      ? `원본 ${img.naturalWidth}×${img.naturalHeight} → ${one.width}×${one.height} (이미 도트 그림: 크기 그대로, 투명 테두리만 잘라냄)`
+      : `원본 ${img.naturalWidth}×${img.naturalHeight} → ${spec.size[0]}×${spec.size[1]}` +
+      (result.converted ? ` · 변환 ${ms.toFixed(0)}ms` : ' · 이미 목표 크기라 변환하지 않음') +
+      (spec.exportScale ? ` · 저장 시 ${spec.exportScale}배(${spec.size[0] * spec.exportScale}px)` : '');
+  };
+  sel.addEventListener('change', run);
+  btn.addEventListener('click', () => {
+    const spec = S[sel.value];
+    const c = spec.exportScale ? scaleCanvas(result.canvas, spec.exportScale) : result.canvas;
+    const a = document.createElement('a');
+    a.download = spec.file.replace(/\.jpe?g$/i, '.png');
+    a.href = c.toDataURL('image/png');
+    a.click();
+  });
+  run();
+}
+</script>
+</body>
+</html>
