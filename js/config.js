@@ -301,7 +301,7 @@ export const CONFIG = {
     prop_ruin:        { file: 'prop_ruin.png',        size: [16, 26] },
     ground:           { file: 'ground.png',           size: [32, 32], tile: true },
     ground_dirt:      { file: 'ground_dirt.png',      size: [32, 32], tile: true },
-    title_bg:         { file: 'title_bg.jpg',         size: [180, 320], tile: true, alt: 'title_bg.png' },
+    title_bg:         { file: 'title_bg.png',         size: [180, 320], tile: true },
     icon:             { file: 'icon-512.png',         size: [32, 32], exportScale: 16 },
   },
 
