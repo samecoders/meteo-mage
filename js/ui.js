@@ -585,26 +585,38 @@ function submitNick() {
   nickBack = 'title';
 }
 
-// ------------------------------------------------------------ 첫 판 안내 (15초)
-let tutTimer = 0, tutStep = -1;
+// ------------------------------------------------------------ 첫 판 안내: 게임은 안내가 끝나거나 건너뛸 때까지 멈춰 있음
+let tutTimer = 0, tutStep = -1, tutNext = null, tutSkip = null;
 const TUT = ['move', 'mana', 'tap', 'dash'];
+const TUT_STEP_MS = 4000;
 export function startTutorial(onDone) {
   const el = $('tutorial');
   el.classList.remove('hidden');
   tutStep = -1;
+  const finish = () => { stopTutorial(); onDone(); };
   const next = () => {
+    clearTimeout(tutTimer);
     tutStep++;
-    if (tutStep >= TUT.length) { stopTutorial(); onDone(); return; }
+    if (tutStep >= TUT.length) { finish(); return; }
     const k = TUT[tutStep];
     $('tutText').textContent = t('tut.' + k);
     $('tutCount').textContent = `${tutStep + 1}/${TUT.length}`;
     drawTut(k);
     el.dataset.step = k;
-    tutTimer = setTimeout(next, 3750);
+    tutTimer = setTimeout(next, TUT_STEP_MS);
   };
+  tutNext = (e) => { if (e.target.closest('#tutSkip')) return; sfx.click(); next(); };   // 상자를 누르면 다음 안내
+  tutSkip = (e) => { e.stopPropagation(); sfx.click(); finish(); };
+  el.querySelector('.tutBox').addEventListener('click', tutNext);
+  $('tutSkip').addEventListener('click', tutSkip);
   next();
 }
-export function stopTutorial() { clearTimeout(tutTimer); $('tutorial').classList.add('hidden'); }
+export function stopTutorial() {
+  clearTimeout(tutTimer);
+  $('tutorial').classList.add('hidden');
+  if (tutNext) { $('tutorial').querySelector('.tutBox').removeEventListener('click', tutNext); tutNext = null; }
+  if (tutSkip) { $('tutSkip').removeEventListener('click', tutSkip); tutSkip = null; }
+}
 
 function drawTut(k) {
   const cv = $('tutCv'), c = pctx(cv), W = cv.width, Hh = cv.height;

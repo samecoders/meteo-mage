@@ -7,7 +7,7 @@ import { grid, allocGrid, buildGrid, cellX, cellY } from './sim/grid.js';
 import { resetSpawner, updateSpawner } from './sim/spawn.js';
 import { createPlayer, resetPlayer } from './player.js';
 import { isDashing } from './dash.js';
-import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs } from './meteor.js';
+import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer } from './meteor.js';
 import { clearOrbs, updateOrbs } from './orbs.js';
 import { addExp, expNeed } from './upgrade.js';
 import { clearEffects, addCorpse, addRing, addShake, addParticle, addSpriteFx } from './render/effects.js';
@@ -111,6 +111,7 @@ const nearOffs = [];
 function hurtPlayer(dmg, src) {
   const p = G.player;
   if (!p.alive || G.bench || G.god || p.invuln > 0) return;   // G.god: 콘솔 테스트 전용
+  if (CONFIG.meteor.castGuard && castingOnPlayer()) return;  // 법사에게 메테오가 떨어지는 중: 보호막(몹이 모여들게 밀쳐내지도 않음)
   if (p.shield) {
     const S = CONFIG.shop;
     p.shield = false;

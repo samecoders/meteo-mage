@@ -12,7 +12,7 @@ import { dropItem, ITEM_POTION, ITEM_MAGNET } from './items.js';
 const MC = CONFIG.meteor;
 
 export const meteors = [];
-for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1 });
+for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, track: false });
 
 export const fires = [];
 for (let i = 0; i < 6; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
@@ -22,27 +22,42 @@ export function resetMeteors() {
   for (let i = 0; i < fires.length; i++) fires[i].active = false;
 }
 
-function addMeteor(x, y, t0, fall) {
+function addMeteor(x, y, t0, fall, track) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (m.active) continue;
-    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall;
+    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.track = track;
     return m;
   }
   return null;
 }
 
+/** 'center' 모드면 탭 위치는 무시하고 법사 자리에 떨어짐(낙하 중 법사를 따라감) */
 export function launchMeteor(G, x, y) {
-  addMeteor(x, y, 0, G.fallTime);
-  if (G.twin) addMeteor(x, y, -MC.twinDelay, G.fallTime);
+  const track = MC.target === 'center';
+  if (track) { x = G.player.x; y = G.player.y; }
+  addMeteor(x, y, 0, G.fallTime, track);
+  if (G.twin) addMeteor(x, y, -MC.twinDelay, G.fallTime, track);
 }
 
+/** 법사 자리로 떨어지는 메테오가 낙하 중인지(시전 보호막) */
+export function castingOnPlayer() {
+  for (let i = 0; i < meteors.length; i++) { const m = meteors[i]; if (m.active && m.track && m.t >= 0) return true; }
+  return false;
+}
+
+/** 그리기용 메테오 위치: 법사를 따라가는 메테오는 매 프레임 법사 위치 */
+export function meteorX(G, m) { return m.track && G.player.alive ? G.player.x : m.x; }
+export function meteorY(G, m) { return m.track && G.player.alive ? G.player.y : m.y; }
+
 export function updateMeteors(G, dt) {
+  const p = G.player;
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active) continue;
+    if (m.track && p.alive) { m.x = p.x; m.y = p.y; }
     m.t += dt;
-    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y); }
+    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y, m.track); }
   }
 }
 
@@ -62,7 +77,7 @@ function noteKill(x, y) {
 }
 
 /** 폭발 판정 + 보상 + 연출 */
-export function explode(G, x, y) {
+export function explode(G, x, y, onPlayer) {
   const R = G.meteorRadius, R2 = R * R, power = G.meteorPower, edge = MC.edgeDamage;
   const SR = R * MC.shockRange, SR2 = SR * SR, imp = MC.shockImpulse;
   const g = grid, cs = g.cs, cols = g.cols, start = g.start, items = g.items;
@@ -128,9 +143,9 @@ export function explode(G, x, y) {
     else if (r < IC.potionChance + IC.magnetChance) dropItem(ITEM_MAGNET, ix, iy);
   }
 
-  // 법사: 폭발 순간 반경 안이면 대시 중이어도 죽음(쉴드는 1회 막음)
+  // 법사: 폭발 순간 반경 안이면 대시 중이어도 피해(쉴드는 1회 막음). 법사에게 떨어지는 메테오는 법사를 다치게 하지 않음
   const p = G.player;
-  if (p.alive) {
+  if (p.alive && !onPlayer) {
     const dx = p.x - x, dy = p.y - y, d = Math.sqrt(dx * dx + dy * dy);
     if (d < R) {
       G.hurtPlayer(MC.selfDamage, 'meteor');

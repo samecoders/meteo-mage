@@ -79,7 +79,12 @@ function startGame() {
   UI.showScreen(null);
   UI.showHud(true);
   if (!save.data.tutorialDone && !G.bench) {
-    UI.startTutorial(() => { save.data.tutorialDone = true; save.write(); });
+    // 안내 중에는 게임이 멈춰 있음(시간·몹 생성 없음). 끝나거나 건너뛰면 그때부터 시작
+    G.mode = 'intro';
+    UI.startTutorial(() => {
+      save.data.tutorialDone = true; save.write();
+      if (G.mode === 'intro') { G.mode = 'play'; acc = 0; last = performance.now(); resetInput(); }
+    });
   }
 }
 
@@ -266,7 +271,7 @@ function frame(now) {
   renderer.end();
   const renderMs = performance.now() - r0;
 
-  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
+  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
   if (ticks) simAvg = simAvg * 0.9 + (simMs / ticks) * 0.1;
   renderAvg = renderAvg * 0.9 + renderMs * 0.1;
   if (G.bench) benchFrame(frameMs, simMs, ticks, renderMs);

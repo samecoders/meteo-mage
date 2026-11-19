@@ -155,7 +155,7 @@ export const CONFIG = {
 
   // ------------------------------------------------------------ 메테오
   meteor: {
-    radius: 105,           // 기본 폭발 반경
+    radius: 120,           // 기본 폭발 반경 (중앙 메테오로 바꾸며 105→120: 봇 측정으로 이전 생존 시간에 맞춤)
     power: 10,             // 기본 위력(중심 피해)
     edgeDamage: 0.5,       // 가장자리 피해 비율
     fallTime: 1.2,
@@ -163,7 +163,9 @@ export const CONFIG = {
     rangeCardPct: 0.15,
     powerCardPct: 0.30,
     twinDelay: 0.5,
-    selfDamage: 50,        // 자기 메테오 폭발에 휘말렸을 때 피해(대시로 피할 수 없음)
+    target: 'center',      // 'center': 화면 중앙(법사)에 떨어지고 낙하 중 법사를 따라감, 법사는 피해 없음 / 'tap': 탭한 자리
+    castGuard: true,       // target 'center': 메테오가 떨어지는 동안 법사는 피해·밀쳐내기 없음(몹이 모여들어 한꺼번에 터짐)
+    selfDamage: 50,        // target 'tap' 일 때만: 자기 메테오 폭발에 휘말렸을 때 피해(대시로 피할 수 없음)
     shockRange: 1.7,       // 반경 × 이 값까지 충격파로 밀어냄
     shockImpulse: 300,
     fireDuration: 3,
