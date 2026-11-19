@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { SpriteBatch, ShapeBatch } from './gl.js';
 import { M, B } from '../sim/mobs.js';
 import { O } from '../orbs.js';
-import { meteors, fires, meteorX, meteorY } from '../meteor.js';
+import { meteors, fires } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
 import { items, fireballs } from '../items.js';
 import { pal } from '../skins.js';
@@ -123,7 +123,7 @@ export function fillTop(V, alpha, G, time) {
     const m = meteors[i];
     if (!m.active || m.t < 0) continue;
     const f = Math.min(1, m.t / m.fall), h = (1 - f) * 760;
-    b.push((meteorX(G, m) + h * 0.55) * 0.5 - V.left, (meteorY(G, m) - h) * 0.5 - V.top, spr, 0, 0, 2, 0);
+    b.push((m.x + h * 0.55) * 0.5 - V.left, (m.y - h) * 0.5 - V.top, spr, 0, 0, 2, 0);
   }
 }
 
@@ -145,7 +145,7 @@ export function fillUnder(V, G, time, dashPrev) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active) continue;
-    const sx = meteorX(G, m) * 0.5 - V.left, sy = meteorY(G, m) * 0.5 - V.top;
+    const sx = m.x * 0.5 - V.left, sy = m.y * 0.5 - V.top;
     const f = Math.max(0, m.t / m.fall);
     if (CONFIG.effects.shadows[q] && m.t >= 0) b.push(sx, sy, R * (0.12 + 0.4 * f), 0, DARK, 0, (70 + 140 * f) | 0, 0, 0);
     b.push(sx, sy, R, 2, RED, 2, 255, 24, ((time * 40) | 0) & 255);
@@ -203,7 +203,7 @@ export function emitVisuals(G, dt) {
     const m = meteors[i];
     if (!m.active || m.t < 0) continue;
     const f = Math.min(1, m.t / m.fall), h = (1 - f) * 760;
-    const x = meteorX(G, m) + h * 0.55, y = meteorY(G, m) - h;
+    const x = m.x + h * 0.55, y = m.y - h;
     const n = Math.min(particleRoom(), 4);
     for (let k = 0; k < n; k++) {
       addParticle(x + (Math.random() - 0.3) * 16, y + (Math.random() - 0.7) * 16, 140 + Math.random() * 80, -220 - Math.random() * 120,

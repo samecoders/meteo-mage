@@ -141,7 +141,7 @@ function think(st, inp, skill) {
     if (d < 220 && close === 0) { mx += dx / d * 0.8; my += dy / d * 0.8; }
   }
   const ml = Math.hypot(mx, my) || 1;
-  const casting = CONFIG.meteor.target === 'center' && meteors.some((m) => m.active && m.track);
+  const casting = CONFIG.meteor.target === 'center' && meteors.some((m) => m.active && m.own);
   const lure = casting ? 0 : CONFIG.meteor.target === 'center' && G.mana >= CONFIG.mana.max ? 0.35 : 1;   // 메테오 준비되면 천천히, 떨어지는 중엔 멈춰서 몹을 모음
   inp.mx = mx / ml * lure; inp.my = my / ml * lure;
 

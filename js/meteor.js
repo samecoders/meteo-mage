@@ -12,7 +12,7 @@ import { dropItem, ITEM_POTION, ITEM_MAGNET } from './items.js';
 const MC = CONFIG.meteor;
 
 export const meteors = [];
-for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, track: false });
+for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false });
 
 export const fires = [];
 for (let i = 0; i < 6; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
@@ -22,42 +22,36 @@ export function resetMeteors() {
   for (let i = 0; i < fires.length; i++) fires[i].active = false;
 }
 
-function addMeteor(x, y, t0, fall, track) {
+function addMeteor(x, y, t0, fall, own) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (m.active) continue;
-    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.track = track;
+    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own;
     return m;
   }
   return null;
 }
 
-/** 'center' 모드면 탭 위치는 무시하고 법사 자리에 떨어짐(낙하 중 법사를 따라감) */
+/** 'center' 모드: 탭 위치는 무시하고, 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 */
 export function launchMeteor(G, x, y) {
-  const track = MC.target === 'center';
-  if (track) { x = G.player.x; y = G.player.y; }
-  addMeteor(x, y, 0, G.fallTime, track);
-  if (G.twin) addMeteor(x, y, -MC.twinDelay, G.fallTime, track);
+  const own = MC.target === 'center';
+  if (own) { x = G.player.x; y = G.player.y; }
+  addMeteor(x, y, 0, G.fallTime, own);
+  if (G.twin) addMeteor(x, y, -MC.twinDelay, G.fallTime, own);
 }
 
-/** 법사 자리로 떨어지는 메테오가 낙하 중인지(시전 보호막) */
+/** 중앙 메테오가 낙하 중인지(시전 보호막) */
 export function castingOnPlayer() {
-  for (let i = 0; i < meteors.length; i++) { const m = meteors[i]; if (m.active && m.track && m.t >= 0) return true; }
+  for (let i = 0; i < meteors.length; i++) { const m = meteors[i]; if (m.active && m.own && m.t >= 0) return true; }
   return false;
 }
 
-/** 그리기용 메테오 위치: 법사를 따라가는 메테오는 매 프레임 법사 위치 */
-export function meteorX(G, m) { return m.track && G.player.alive ? G.player.x : m.x; }
-export function meteorY(G, m) { return m.track && G.player.alive ? G.player.y : m.y; }
-
 export function updateMeteors(G, dt) {
-  const p = G.player;
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active) continue;
-    if (m.track && p.alive) { m.x = p.x; m.y = p.y; }
     m.t += dt;
-    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y, m.track); }
+    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y, m.own); }
   }
 }
 
