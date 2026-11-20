@@ -143,6 +143,7 @@ export function initInput(layer, callbacks) {
     if (k) { keys[k] = true; e.preventDefault(); return; }
     if (e.repeat) return;
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { input.dashHeld = true; cb.onDashHold(); }
+    else if (e.code === 'Space') { e.preventDefault(); cb.onMeteor && cb.onMeteor(); }
     else if (e.code === 'KeyE') cb.onShield();
     else if (e.code === 'KeyR') cb.onDashUp();
     else if (e.code === 'Escape' || e.code === 'KeyP') cb.onPause();

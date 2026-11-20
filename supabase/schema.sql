@@ -43,7 +43,7 @@ alter table public.scores enable row level security;
 revoke all on public.scores from anon, authenticated;
 
 -- ---------------------------------------------------------------------
--- 부정 방지 한도 (js/config.js 의 값과 맞춰 두세요) — 시즌 2 (2026-11-20)
+-- 부정 방지 한도 (js/config.js 의 값과 맞춰 두세요) — 시즌 3 (2026-11-20 2차 수정, 난이도 normal 만 등록)
 --   spawn.curve (아래 _spawn_curve), spawn.perTickMax = 220, sim.tickRate = 30, sim.maxMobs = 60000
 --   meteor.radius = 120, meteor.rangeCardPct = 0.15, items.lensPct = 0.06 × 5개
 --   보스: 120초마다, 슬라임 왕 220마리 분열, 리치 6초마다 36마리 소환
@@ -52,8 +52,9 @@ revoke all on public.scores from anon, authenticated;
 -- 시간(초) → 필드 목표 몹 수 (js/config.js spawn.curve 와 같은 표, 선형 보간)
 create or replace function public._spawn_target(p_t double precision)
 returns double precision language sql immutable as $$
-  with c(t, n) as (values (0, 60), (30, 160), (60, 300), (120, 900), (180, 2000), (270, 5000),
-                          (360, 10000), (450, 18000), (540, 30000), (630, 40000), (720, 50000), (840, 60000)),
+  -- 시즌 3: 곡선 × 1.3 (난이도 normal 의 spawn.curveMul), 최대 60,000
+  with c(t, n) as (values (0, 78), (30, 208), (60, 390), (120, 1170), (180, 2600), (270, 6500),
+                          (360, 13000), (450, 23400), (540, 39000), (630, 52000), (720, 60000), (840, 60000)),
        seg as (select t, n, lead(t) over (order by t) t2, lead(n) over (order by t) n2 from c)
   select coalesce(
     (select n + (n2 - n) * (p_t - t) / (t2 - t) from seg where p_t >= t and p_t < t2),
@@ -70,6 +71,7 @@ returns bigint language sql immutable as $$
           + public._spawn_target(greatest(p_survive_sec, 0))
           + (p_survive_sec / 120 + 1) * 400            -- 슬라임 왕 분열 + 리치 소환(보스가 살아 있는 동안) 여유
           + (p_survive_sec / 6) * 36
+          + (p_survive_sec / 30 + 1) * 400              -- 포위 무리(30초마다 최대 400, 넉넉하게)
           + (p_survive_sec / 120 + 1))::bigint;
 $$;
 
@@ -79,7 +81,7 @@ create or replace function public.max_combo_possible(p_level integer, p_survive_
 returns bigint language sql immutable as $$
   select least(60000::bigint,
                ceil(pi() * power(120 * power(1.06, 5) * power(1.15, greatest(p_level, 1) - 1), 2) / 25)::bigint + 50,
-               ceil(public._spawn_target(greatest(p_survive_sec, 0)) * 1.2)::bigint + 400);
+               ceil(public._spawn_target(greatest(p_survive_sec, 0)) * 1.2)::bigint + 800);
 $$;
 
 -- 범위별 기록(같은 시즌만)

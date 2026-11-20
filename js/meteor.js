@@ -7,11 +7,12 @@ import { spawnOrb } from './orbs.js';
 import { addParticle, addCrater, addRing, addShake, particleRoom, addSpriteFx, spriteW, WHITE } from './render/effects.js';
 import { pal } from './skins.js';
 import { SPR } from './assets.js';
+import { playerSpeed } from './player.js';
 
 const MC = CONFIG.meteor;
 
 export const meteors = [];
-for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false });
+for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false, follow: false });
 
 export const fires = [];
 for (let i = 0; i < 6; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
@@ -21,22 +22,68 @@ export function resetMeteors() {
   for (let i = 0; i < fires.length; i++) fires[i].active = false;
 }
 
-function addMeteor(x, y, t0, fall, own) {
+function addMeteor(x, y, t0, fall, own, follow) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (m.active) continue;
-    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own;
+    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own; m.follow = !!follow;
     return m;
   }
   return null;
 }
 
-/** 'center' 모드: 탭 위치는 무시하고, 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 */
+/**
+ * 낙하 시간 = max(기본 낙하 시간, 폭발 반경 ÷ (법사 현재 이동 속도 × escapeFactor))
+ * → 범위를 아무리 키워도 대시 없이 곧장 달리면 빠져나갈 수 있음
+ */
+export function fallTimeFor(G) {
+  return Math.max(G.fallTime, G.meteorRadius / (playerSpeed(G) * MC.escapeFactor));
+}
+
+/**
+ * 'center': 누른 순간 법사가 서 있는 자리(x, y)에 고정해서 떨어짐(법사를 따라가지 않음).
+ * 쌍둥이: 둘째 발은 twinDelay 초 뒤 그때 법사가 있는 자리에.
+ */
 export function launchMeteor(G, x, y) {
   const own = MC.target === 'center';
-  if (own) { x = G.player.x; y = G.player.y; }
-  addMeteor(x, y, 0, G.fallTime, own);
-  if (G.twin || G.twinT > 0) addMeteor(x, y, -MC.twinDelay, G.fallTime, own);
+  const fall = own ? fallTimeFor(G) : G.fallTime;
+  addMeteor(x, y, 0, fall, own, false);
+  if (G.twin || G.twinT > 0) addMeteor(x, y, -MC.twinDelay, fall, own, own);
+}
+
+/**
+ * 탈출 방향: 메테오 중심에서 바깥쪽을 우선하되, 16방향 중 반경 밖까지 가는 길에 몹이 가장 적은 쪽.
+ * 격자 칸 수만 읽음(그림·봇 공용). out 에 단위 벡터
+ */
+export function escapeDir(G, m, out) {
+  const p = G.player, g = grid, cols = g.cols, cnt = g.count, R = G.meteorRadius;
+  let best = 1e18;
+  const ox = p.x - m.x, oy = p.y - m.y, od = Math.hypot(ox, oy) || 1;
+  for (let k = 0; k < 16; k++) {
+    const a = k / 16 * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a);
+    let s = 0;
+    for (let q = 1; q <= 4; q++) {
+      const d = R * 0.35 * q;
+      s += cnt[cellY(p.y + dy * d) * cols + cellX(p.x + dx * d)] * (5 - q);
+    }
+    // 중심에서 바깥으로 갈수록(빨리 빠져나감) 유리
+    s += (1 - (dx * ox + dy * oy) / od) * 3;
+    if (s < best) { best = s; out[0] = dx; out[1] = dy; }
+  }
+  return true;
+}
+
+/** 법사가 지금 내 메테오 반경 안에 있으면 그 메테오(가장 먼저 터지는 것), 없으면 null */
+export function threatOnPlayer(G) {
+  let best = null;
+  const p = G.player;
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active || m.t < 0) continue;
+    const dx = p.x - m.x, dy = p.y - m.y, R = G.meteorRadius;
+    if (dx * dx + dy * dy < R * R && (!best || m.fall - m.t < best.fall - best.t)) best = m;
+  }
+  return best;
 }
 
 /** 중앙 메테오가 낙하 중인지(시전 보호막) */
@@ -49,7 +96,12 @@ export function updateMeteors(G, dt) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active) continue;
+    const before = m.t;
     m.t += dt;
+    if (m.follow && before < 0 && m.t >= 0) {       // 쌍둥이 둘째 발: 이 순간 법사 자리로 고정
+      m.x = G.player.x; m.y = G.player.y; m.follow = false; m.fall = fallTimeFor(G);
+      G.events.push({ type: 'launch2' });
+    }
     if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y); }
   }
 }

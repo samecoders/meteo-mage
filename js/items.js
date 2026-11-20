@@ -52,6 +52,7 @@ export function spawnFireball(x, y, vx, vy, r, life, dmg) {
 function eligible(G, key) {
   const p = G.player;
   if (key === 'chest') return false;
+  if (key === 'star' && countOnField(KIND.star) >= IC.starMaxField) return false;   // 화면에 한 번에 1개까지
   if (!G.meteorLearned && IC.meteorOnly.includes(key)) return false;
   switch (key) {
     case 'heart': return p.maxHp < IC.heartMax;
@@ -64,16 +65,22 @@ function eligible(G, key) {
   return true;
 }
 const pool = [];
+/** 등급을 고른 뒤 그 등급 안에서 종류별 가중치(items.kindWeight, 기본 1)로 */
 export function randomKind(G) {
-  const rng = G.rng, r = rng(), R = IC.rarity;
+  const rng = G.rng, r = rng(), R = IC.rarity, KW = IC.kindWeight || {};
   const want = r < R.legend ? 'legend' : r < R.legend + R.rare ? 'rare' : 'common';
   for (const tier of [want, 'common', 'rare', 'legend']) {
     pool.length = 0;
-    for (let k = 0; k < KINDS.length; k++) if (RARITY[k] === tier && eligible(G, KINDS[k])) pool.push(k);
-    if (pool.length) return pool[(rng() * pool.length) | 0];
+    let sum = 0;
+    for (let k = 0; k < KINDS.length; k++) if (RARITY[k] === tier && eligible(G, KINDS[k])) { pool.push(k); sum += KW[KINDS[k]] ?? 1; }
+    if (!pool.length) continue;
+    let x = rng() * sum;
+    for (const k of pool) { x -= KW[KINDS[k]] ?? 1; if (x <= 0) return k; }
+    return pool[pool.length - 1];
   }
   return KIND.coins;
 }
+function countOnField(kind) { let n = 0; for (let i = 0; i < items.length; i++) if (items[i].active && items[i].kind === kind) n++; return n; }
 
 /** 평원 아이템 생성 타이머 */
 export function updateItemSpawner(G, dt) {

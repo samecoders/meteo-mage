@@ -132,7 +132,7 @@
   "item.fury.name": "Mana Taşkını",
   "item.chest.name": "Hazine Sandığı",
   "learn.title": "Meteor öğrenildi!",
-  "learn.desc": "Mana dolunca canavarların geleceği yere dokun. Kendi meteorun seni öldürür.",
+  "learn.desc": "Mana doldu mu? Meteor düğmesine bas! Durduğun yere düşer; canavarları topla ve kaç.",
   "tut.bolt": "Büyü mermileri en yakın canavara kendiliğinden atılır. Meteoru 5. seviyede öğrenirsin",
   "chain": "{n} KOMBO",
   "settings.flick": "Kaydırarak atıl",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Seri Atış",
   "card.boltRate.desc": "Mermi atış hızı +%25",
   "card.boltPierce.name": "Delici Mermi",
-  "card.boltPierce.desc": "Mermiler +1 delip geçer"
+  "card.boltPierce.desc": "Mermiler +1 delip geçer",
+  "ring.warn": "Kuşatma geliyor! Boşluğu bul",
+  "settings.music": "Müzik",
+  "settings.sfx": "Ses efektleri",
+  "settings.hint": "Kaçış oku"
 }

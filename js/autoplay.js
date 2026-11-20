@@ -1,7 +1,8 @@
 // 자동 플레이 봇(?autoplay=1, tools/balance.html, node 측정 공용). 게임 규칙 코드를 그대로 써서 실제와 같은 틱으로 진행.
-// 몹에게서 멀어지는 쪽으로 이동, 몹이 가장 많은 곳에 메테오(자기 메테오 반경 밖), 가까운 아이템 줍기.
+// 몹에게서 멀어지는 쪽으로 이동하며 몹을 끌고 다니다가, 마력이 차고 몹이 충분히 모이면 메테오 버튼(내 자리) →
+// 몹이 적은 쪽으로 탈출(필요하면 대시). 가까운 아이템 줍기.
 import { CONFIG } from './config.js';
-import { G, initSim, newGame, tick, queueTap, learnMeteor, resumePush } from './game.js';
+import { G, initSim, newGame, tick, queueMeteor, learnMeteor, resumePush } from './game.js';
 import { M, B } from './sim/mobs.js';
 import { grid, cellX, cellY } from './sim/grid.js';
 import { updatePlayer, playerSpeed } from './player.js';
@@ -9,7 +10,7 @@ import { tryDash } from './dash.js';
 import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
 import { buyShield, buyDash, shieldPrice, dashPrice } from './shop.js';
 import { fireballs, items, KINDS } from './items.js';
-import { meteors } from './meteor.js';
+import { meteors, threatOnPlayer, escapeDir } from './meteor.js';
 
 let inited = false;
 const SPECIAL_PRIORITY = ['vitality', 'twin', 'dash2', 'fastFall', 'magnet', 'fire'];
@@ -41,7 +42,8 @@ export function startBotGame({ seed = 1, skill = 0.8 } = {}) {
   return {
     seed, skill, f: 0, inp: { mx: 0, my: 0, dashHeld: false }, lx: 1, ly: 0,
     thinkEvery: Math.max(1, Math.round(6 - skill * 4)), meteors: 0, dashes: 0, hits: 0, items: 0,
-    lvTimes: {}, manaFullAt: -1, manaWaits: [],
+    lvTimes: {}, manaFullAt: -1, manaWaits: [], fullT: 0, esc: [0, 0],
+    need: globalThis.__botNeed ?? 10, wait: globalThis.__botWait ?? 2,
   };
 }
 
@@ -171,37 +173,36 @@ function think(st) {
   st.lx = mx; st.ly = my;
   inp.mx = mx; inp.my = my;
 
+  // 내 메테오 반경 안: 몹이 적은 쪽으로 탈출. 곧장 달려서 늦으면 대시
+  const threat = star ? null : threatOnPlayer(G);
+  if (threat) {
+    escapeDir(G, threat, st.esc);
+    inp.mx = st.esc[0]; inp.my = st.esc[1];
+    const d = Math.hypot(p.x - threat.x, p.y - threat.y), need = (G.meteorRadius + 12 - d) / spd, rem = threat.fall - threat.t;
+    if (rem < need + 0.12 + (1 - skill) * 0.1 && p.dashCharges >= 1 && p.dashT <= 0) { if (tryDash(G, inp)) st.dashes++; }
+  } else if (G.meteorLearned && G.mana >= CONFIG.mana.max && !star) {
+    // 마력이 찼으면 천천히 걸어 몹이 따라붙게
+    inp.mx *= 0.55; inp.my *= 0.55;
+  }
+
   // 위험하면 대시(가장 덜 붐빈 쪽으로)
-  let inBlast = false;
-  for (const m of danger) { const dx = p.x - m.x, dy = p.y - m.y; if (dx * dx + dy * dy < (G.meteorRadius + 10) ** 2 && m.fall - m.t < 0.35) inBlast = true; }
-  if (!star && (close >= 3 || inBlast) && p.dashCharges >= 1 && p.dashT <= 0) { if (tryDash(G, inp)) st.dashes++; }
+  if (!star && !threat && close >= 3 && p.dashCharges >= 1 && p.dashT <= 0) { if (tryDash(G, inp)) st.dashes++; }
 
   // 상점
   if (!p.shield && G.stats.gold >= shieldPrice(G)) buyShield(G);
   else if (p.dashLevel < CONFIG.dash.maxUpgrades && G.stats.gold >= dashPrice(G) * 2) buyDash(G);
 
-  // 메테오: 반경 바깥 고리 안에서 가장 빽빽한 곳을, 몹이 올 쪽으로 당겨서 조준
-  if (G.meteorLearned && G.mana >= CONFIG.mana.max) {
-    const R = G.meteorRadius, minD = R + 60, maxD = R + 420;
-    const rc = Math.min(22, Math.ceil(maxD / cs));
-    let best = 0, bu = 0, bv = 0;
-    for (let v = -rc + 1; v < rc; v++) {
-      for (let u = -rc + 1; u < rc; u++) {
-        const wx = (u + 0.5) * cs, wy = (v + 0.5) * cs, d = Math.hypot(wx, wy);
-        if (d < minD || d > maxD) continue;
-        const c = (pcy + v) * cols + pcx + u;
-        const s2 = cnt[c] + cnt[c - 1] + cnt[c + 1] + cnt[c - cols] + cnt[c + cols];
-        if (s2 > best) { best = s2; bu = u; bv = v; }
-      }
+  // 메테오 버튼: 마력이 찼고 반경 안에 몹이 충분히 모였으면(또는 오래 기다렸으면) 내 자리에. 이미 떨어지는 중이면 기다림
+  if (G.meteorLearned && G.mana >= CONFIG.mana.max && !threat) {
+    st.fullT += st.thinkEvery / 60;
+    const R = G.meteorRadius * 0.85, rc = Math.ceil(R / cs);
+    let inR = 0;
+    for (let v = -rc; v <= rc; v++) for (let u = -rc; u <= rc; u++) {
+      if ((u * cs) ** 2 + (v * cs) ** 2 > R * R) continue;
+      inR += cnt[(pcy + v) * cols + pcx + u];
     }
-    if (best > 0) {
-      let tx = g.ox + (pcx + bu + 0.5) * cs, ty = g.oy + (pcy + bv + 0.5) * cs;
-      const dx = p.x - tx, dy = p.y - ty, d = Math.hypot(dx, dy) || 1;
-      const lead = 85 * G.fallTime * (0.4 + skill * 0.4);   // 몹이 법사 쪽으로 올 만큼 앞당김
-      tx += dx / d * Math.min(lead, d - R - 30); ty += dy / d * Math.min(lead, d - R - 30);
-      if (queueTap(tx, ty)) st.meteors++;
-    }
-  }
+    if ((inR >= st.need || st.fullT > st.wait) && queueMeteor()) { st.meteors++; st.fullT = 0; }
+  } else st.fullT = 0;
 }
 
 // ------------------------------------------------------------ 브라우저: ?autoplay=1 — 10판 빨리 감기 + 결과 표시

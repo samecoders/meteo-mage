@@ -71,9 +71,10 @@ export const CONFIG = {
     despawnFactor: 1.75,   // 스폰 반경 × 이 값 보다 멀어지면 반대편으로 재배치
     flashTicks: 3,         // 피격 깜빡임 틱 수
     // 초반 완화: 처음 easeTime 초 동안 몹 체력·속도를 낮췄다가 서서히 원래 값으로
-    easeTime: 180,
+    easeTime: 180,         // ※ 난이도 프리셋(DIFFICULTY)이 덮어씀
     easeHp: 0.5,           // 0초일 때 체력 배율
     easeSpeed: 0.72,       // 0초일 때 속도 배율
+    speedMul: 1,           // 모든 몹 속도 배율(난이도 프리셋)
   },
 
   // ------------------------------------------------------------ 스폰
@@ -96,6 +97,10 @@ export const CONFIG = {
     fronts: 3,             // 동시에 밀려오는 물결 방향 수
     frontDrift: 0.35,      // 물결 방향이 초당 바뀌는 정도(라디안)
     randomGroupChance: 0.25, // 무작위 방향 무리 비율
+    // 아래 curveMul · typeFrom · typeWeights · ring 은 난이도 프리셋(DIFFICULTY)이 덮어씀
+    curveMul: 1,           // 스폰 곡선 전체 배율
+    typeFrom: {},          // 몹 종류별 첫 등장 시각(초) 예: { wolf: 60 }
+    ring: { on: false },   // 포위 무리
     // [시간, 타입별 가중치] — 순서: 슬라임 박쥐 늑대 버섯 고블린 해골 유령 오크 골렘 흑기사
     typeWeights: [
       [0,   [1.00, 0,    0,    0,    0,    0,    0,    0,    0,    0   ]],
@@ -144,10 +149,13 @@ export const CONFIG = {
     blinkLast: 5,          // 사라지기 전 깜빡이는 시간
     pickupRadius: 26,
     rarity: { common: 0.6, rare: 0.3, legend: 0.1 },
+    kindWeight: {},        // 같은 등급 안에서 종류별 가중치(기본 1). 예: { potion: 0.5 }
+    starMaxField: 99,      // 무적의 별이 필드에 동시에 있을 수 있는 수
     meteorOnly: ['ring', 'lens', 'twin', 'fury'],  // 메테오를 배우기 전(레벨 4 이하)에는 안 나옴
     chestItems: 3,         // 보물상자를 열면 나오는 아이템 수
     chestLife: 60,
     // 효과 수치
+    // ※ starTime·heartMax·kindWeight·starMaxField 는 난이도 프리셋(DIFFICULTY)이 덮어씀
     starTime: 7, starSpeed: 0.3, starBlink: 2,
     heartMax: 6,
     crystalExpPct: 0.3,    // 레벨 4 이하에서 마력 결정: 필요 경험치의 30%
@@ -211,6 +219,7 @@ export const CONFIG = {
     radius: 8,             // 몹 접촉 판정 반경
     // ---- 체력: 하트. 몹에 닿으면 1칸, 0칸이면 게임오버. 자기 메테오는 한 방에 죽음
     hearts: 3,             // 시작 하트
+    // ※ hurtInvuln·regenDelay·regenEvery 는 난이도 프리셋(DIFFICULTY)이 덮어씀
     hurtInvuln: 1.5,       // 맞은 뒤 무적 시간(깜빡임)
     knockRadius: 220,      // 맞을 때 주변 몹을 넓게 밀쳐냄
     knockImpulse: 620,
@@ -253,9 +262,12 @@ export const CONFIG = {
     rangeCardPct: 0.15,
     powerCardPct: 0.30,
     twinDelay: 0.5,
-    target: 'tap',         // 'tap': 탭한 자리(2026-11-20 수정 요청: "몹이 올 자리를 탭") / 'center': 누른 순간의 법사 자리
-    _targetOld: 'center',      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 / 'tap': 탭한 자리
-    castGuard: true,       // target 'center': 메테오가 떨어지는 동안 몹에게는 안 다치고 밀쳐내지도 않음(몹이 모여듦). 자기 메테오 피해는 그대로
+    // 2차 수정(2026-11-20): 메테오 버튼(또는 Space)을 누른 순간 법사가 서 있는 자리에 고정해서 떨어짐. 평원 탭은 아무 일 없음
+    target: 'center',
+    // 반드시 탈출 가능: 낙하 시간 = max(fallTime, 폭발 반경 ÷ (법사 현재 이동 속도 × escapeFactor))
+    escapeFactor: 0.85,
+    escapeHint: true,      // 반경 안에 있는 동안 몹이 가장 적은 쪽으로 연한 화살표(설정에서 끔)      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 / 'tap': 탭한 자리
+    castGuard: false,      // true 면 내 메테오가 떨어지는 동안 몹에게 안 다침(2차 수정: 끔 — 더 어렵게)       // target 'center': 메테오가 떨어지는 동안 몹에게는 안 다치고 밀쳐내지도 않음(몹이 모여듦). 자기 메테오 피해는 그대로
     // 자기 메테오 폭발에 휘말리면 한 방에 죽음(대시 중이어도). 쉴드·무적의 별만 막는다        // 자기 메테오 폭발에 휘말렸을 때 피해. 대시 중이어도 맞음 → 떨어지기 전에 반경 밖으로 대시(거리 140 > 반경 120)
     shockRange: 1.7,       // 반경 × 이 값까지 충격파로 밀어냄
     shockImpulse: 300,
@@ -285,7 +297,7 @@ export const CONFIG = {
   progress: {
     // 필요 경험치: 표(Lv1→2, Lv2→3, …). 표 끝 다음부터는 마지막 값 × expGrowth^(넘은 레벨)
     // 목표: 레벨 5 ≈ 1분 30초, 레벨 7 ≈ 3분. 초반은 빨리, 레벨 8 이후 가파르게
-    expTable: [12, 30, 55, 90, 420, 900, 2600],
+    expTable: [12, 30, 55, 90, 520, 1200, 2600],
     expGrowth: 2.1,
     killsPerGold: 10,      // 10킬당 골드 1
     comboMultK: 0.35,      // 한방 배율 = 1 + K × log10(1 + 킬 수)
@@ -438,13 +450,37 @@ export const CONFIG = {
     dirtThreshold: 0.68,   // 흙 지대 비율(값이 클수록 적음)
   },
 
+  // ------------------------------------------------------------ 소리
+  // 음악 파일(audio/*.mp3)이 있으면 그것, 없으면 js/music.js 의 내장 FM 음악. loopStart/loopEnd(초)는 앞뒤 무음을 잘라낸 뒤 기준, 0 이면 끝까지
+  audio: {
+    musicVolume: 0.7,      // 기본값(설정에서 바꾸면 저장)
+    sfxVolume: 0.8,
+    inGameMusic: 0.7,      // 경기 중에는 효과음이 들리게 음악을 이만큼으로
+    duckLevel: 0.35,       // 메테오 폭발 순간 음악을 이만큼으로
+    duckTime: 0.3,         // 줄였다 되돌리는 시간(초)
+    crossfade: 2,          // 곡 전환 시간(초)
+    battleMobs: 20000,     // 필드 몹이 이보다 많거나 보스가 있으면 위기 음악
+    battleRelease: 10,     // 조건이 풀리고 이만큼 지나면 되돌아감
+    trimThreshold: 0.003,  // mp3 앞뒤 무음 판정(진폭)
+    tracks: {
+      title:  { file: 'bgm_title.mp3',  loop: true,  loopStart: 0, loopEnd: 0 },
+      field:  { file: 'bgm_field.mp3',  loop: true,  loopStart: 0, loopEnd: 0 },
+      battle: { file: 'bgm_battle.mp3', loop: true,  loopStart: 0, loopEnd: 0 },
+      star:   { file: 'bgm_star.mp3',   loop: true,  loopStart: 0, loopEnd: 0 },
+      meteor:   { file: 'jingle_meteor.mp3',   loop: false },
+      levelup:  { file: 'jingle_levelup.mp3',  loop: false },
+      gameover: { file: 'jingle_gameover.mp3', loop: false },
+    },
+  },
+
   // ------------------------------------------------------------ 랭킹 (Supabase)
   // 비워 두면 오프라인 모드(내 기기 기록만 표시)
   ranking: {
     supabaseUrl: '',       // 예: 'https://abcd1234.supabase.co'
     supabaseAnonKey: '',   // 프로젝트 Settings → API 의 anon public 키
     timeoutMs: 6000,
-    season: 2,             // 2026-11-20 규칙 변경(하트·마법탄·아이템) → 시즌 2. 이전 기록과 섞이지 않음
+    season: 3,             // 2026-11-20 2차 수정(메테오 버튼·난이도) → 시즌 3. 이전 기록과 섞이지 않음
+    rankedDifficulty: 'normal',   // 이 난이도만 랭킹에 등록
   },
 
   // ------------------------------------------------------------ 벤치마크
@@ -458,6 +494,69 @@ export const CONFIG = {
     circleSpeed: 0.35,     // 라디안/초
   },
 };
+
+// =====================================================================
+//  난이도 프리셋. CONFIG.difficulty 의 값을 시작할 때 CONFIG 에 덮어씀.
+//  easy = 1차 수정 값(보관), normal = 2차 수정 값(지금 쓰는 값), hard = 더 어렵게.
+//  랭킹은 ranking.rankedDifficulty(normal)만 등록. 화면에는 아직 난이도 선택이 없음.
+// =====================================================================
+const WEIGHTS_V1 = [
+  [0,   [1.00, 0,    0,    0,    0,    0,    0,    0,    0,    0   ]],
+  [30,  [0.75, 0.25, 0,    0,    0,    0,    0,    0,    0,    0   ]],
+  [60,  [0.50, 0.20, 0.15, 0.15, 0,    0,    0,    0,    0,    0   ]],
+  [120, [0.35, 0.15, 0.15, 0.10, 0.15, 0.10, 0,    0,    0,    0   ]],
+  [180, [0.25, 0.12, 0.13, 0.08, 0.14, 0.12, 0.08, 0.08, 0,    0   ]],
+  [270, [0.18, 0.10, 0.12, 0.06, 0.12, 0.12, 0.10, 0.10, 0.07, 0.03]],
+  [360, [0.12, 0.10, 0.10, 0.05, 0.10, 0.12, 0.10, 0.12, 0.12, 0.07]],
+  [480, [0.10, 0.10, 0.10, 0.04, 0.08, 0.12, 0.10, 0.13, 0.13, 0.10]],
+];
+// 늑대 1분부터, 골렘 2분부터(typeFrom 으로 그 전에는 절대 안 나옴)
+const WEIGHTS_V2 = [
+  [0,   [1.00, 0,    0,    0,    0,    0,    0,    0,    0,    0   ]],
+  [30,  [0.75, 0.25, 0,    0,    0,    0,    0,    0,    0,    0   ]],
+  [60,  [0.50, 0.20, 0.15, 0.15, 0,    0,    0,    0,    0,    0   ]],
+  [120, [0.33, 0.15, 0.15, 0.10, 0.15, 0.10, 0,    0,    0.02, 0   ]],
+  [180, [0.24, 0.12, 0.13, 0.08, 0.13, 0.12, 0.08, 0.07, 0.03, 0   ]],
+  [270, [0.18, 0.10, 0.12, 0.06, 0.12, 0.12, 0.10, 0.10, 0.07, 0.03]],
+  [360, [0.12, 0.10, 0.10, 0.05, 0.10, 0.12, 0.10, 0.12, 0.12, 0.07]],
+  [480, [0.10, 0.10, 0.10, 0.04, 0.08, 0.12, 0.10, 0.13, 0.13, 0.10]],
+];
+export const DIFFICULTY = {
+  easy: {   // 1차 수정(2026-11-20 오전) 값
+    player: { regenDelay: 6, regenEvery: 5, hurtInvuln: 1.5 },
+    mobs: { easeTime: 180, speedMul: 1 },
+    spawn: { curveMul: 1, typeFrom: {}, typeWeights: WEIGHTS_V1, ring: { on: false } },
+    items: { starTime: 7, starMaxField: 99, heartMax: 6, kindWeight: {} },
+  },
+  normal: { // 2차 수정: 속도감은 그대로, 조금 더 어렵게
+    player: { regenDelay: 8, regenEvery: 8, hurtInvuln: 1.0 },
+    mobs: { easeTime: 90, speedMul: 1.1 },          // 가장 빠른 늑대 112×1.1=123 < 법사 161
+    spawn: {
+      curveMul: 1.3, typeFrom: { wolf: 60, golem: 120 }, typeWeights: WEIGHTS_V2,
+      // 포위 무리: 1분 30초부터 30~40초마다 법사를 빙 둘러싼 고리로 나타나 조여옴. 한 군데 틈이 있음
+      ring: { on: true, from: 90, everyMin: 30, everyMax: 40, warn: 2, radius: 360, count: 120, countPerMin: 25, countMax: 320, rows: 2, rowGap: 22, gapAngle: 0.75 },
+    },
+    items: { starTime: 5, starMaxField: 1, heartMax: 5, kindWeight: { potion: 0.5 } },
+  },
+  hard: {
+    player: { regenDelay: 10, regenEvery: 10, hurtInvuln: 0.8 },
+    mobs: { easeTime: 45, speedMul: 1.18 },
+    spawn: {
+      curveMul: 1.6, typeFrom: { wolf: 45, golem: 90 }, typeWeights: WEIGHTS_V2,
+      ring: { on: true, from: 60, everyMin: 24, everyMax: 30, warn: 2, radius: 340, count: 150, countPerMin: 35, countMax: 400, rows: 2, rowGap: 20, gapAngle: 0.6 },
+    },
+    items: { starTime: 4, starMaxField: 1, heartMax: 4, kindWeight: { potion: 0.35 } },
+  },
+};
+CONFIG.difficulty = 'normal';
+
+/** 난이도 프리셋을 CONFIG 에 덮어씀(섹션 안의 키만 바꿈) */
+export function applyDifficulty(name) {
+  const pr = DIFFICULTY[name] || DIFFICULTY.normal;
+  for (const sec in pr) Object.assign(CONFIG[sec], pr[sec]);
+  CONFIG.difficulty = DIFFICULTY[name] ? name : 'normal';
+}
+applyDifficulty(CONFIG.difficulty);
 
 // 내부 계산용 파생 값
 export const TICK_DT = 1 / CONFIG.sim.tickRate;

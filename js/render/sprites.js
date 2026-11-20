@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { SpriteBatch, ShapeBatch } from './gl.js';
 import { M, B } from '../sim/mobs.js';
 import { O } from '../orbs.js';
-import { meteors, fires } from '../meteor.js';
+import { meteors, fires, threatOnPlayer, escapeDir } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
 import { items, fireballs, KINDS, RARITY, ITEM_CHEST } from '../items.js';
 import { BT } from '../bolts.js';
@@ -169,12 +169,14 @@ export function fillUnder(V, G, time, dashPrev) {
   const R = G.meteorRadius * 0.5;
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
-    if (!m.active) continue;
+    if (!m.active || (m.follow && m.t < 0)) continue;   // 쌍둥이 둘째 발: 떨어질 자리가 정해지기 전
     const sx = m.x * 0.5 - V.left, sy = m.y * 0.5 - V.top;
     const f = Math.max(0, m.t / m.fall);
+    // 붉은 원(폭발 반경) + 남은 시간: 안쪽 테두리가 반경에서 중심으로 줄어듦
     if (CONFIG.effects.shadows[q] && m.t >= 0) b.push(sx, sy, R * (0.12 + 0.4 * f), 0, DARK, 0, (70 + 140 * f) | 0, 0, 0);
+    b.push(sx, sy, R, 0, RED, 0, m.t >= 0 ? 40 + (90 * f) | 0 : 30, 0, 0);
     b.push(sx, sy, R, 2, RED, 2, 255, 24, ((time * 40) | 0) & 255);
-    if (m.t >= 0) b.push(sx, sy, R * f, 1, RED, 1, 120, 0, 0);
+    if (m.t >= 0) b.push(sx, sy, Math.max(1, R * (1 - f)), 2, f > 0.7 && ((time * 12) | 0) % 2 ? WHITE : RED, 1, 255, 0, 0);
   }
   if (dashPrev) {
     const p = G.player;
@@ -223,6 +225,18 @@ export function fillOver(V, G, time, alpha) {
     b.push(sx, sy, 15, 2, RAINBOW[k % RAINBOW.length], 1, 255, 0, 0);
     b.push(sx, sy, 19, 1, RAINBOW[(k + 3) % RAINBOW.length], 2, 220, 12, (k * 9) & 255);
   }
+  // 내 메테오 반경 안: 몹이 가장 적은 쪽으로 연한 화살표(설정에서 끔)
+  if (p.alive && G.escapeHint && CONFIG.meteor.target === 'center') {
+    const m = threatOnPlayer(G);
+    if (m && escapeDir(G, m, hintDir)) {
+      const sx = p.x * 0.5 - V.left, sy = p.y * 0.5 - V.top, blink = ((time * 6) | 0) % 2;
+      const dx = hintDir[0], dy = hintDir[1];
+      for (let k = 0; k < 5; k++) b.push(sx + dx * (16 + k * 3), sy + dy * (16 + k * 3), 1, 0, WHITE, 3, blink ? 150 : 100, 0, 0);
+      const tx = sx + dx * 31, ty = sy + dy * 31;   // 화살촉
+      b.push(tx - dx * 3 - dy * 3, ty - dy * 3 + dx * 3, 1, 0, WHITE, 3, 150, 0, 0);
+      b.push(tx - dx * 3 + dy * 3, ty - dy * 3 - dx * 3, 1, 0, WHITE, 3, 150, 0, 0);
+    }
+  }
   // 무리 속에서도 법사가 보이게: 발밑 표시 고리(그림만)
   if (p.alive) {
     const pulse = ((time * 4) | 0) % 2;
@@ -239,6 +253,8 @@ export function fillOver(V, G, time, alpha) {
     b.push(sx - w + w * f, sy, w * f, 1, RED, 4, 255, 0, 0);
   }
 }
+
+const hintDir = [0, 0];
 
 /** 프레임마다 시각용 파티클 생성(메테오 꼬리, 화염) — 게임 규칙과 무관 */
 export function emitVisuals(G, dt) {

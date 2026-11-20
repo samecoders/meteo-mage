@@ -89,7 +89,7 @@ export function newGame(opts) {
   G.shieldBought = 0; G.goldFrac = 0; G.hitstop = 0; G.dying = 0;
   G.events.length = 0; G.taps.length = 0;
   clearMobs(); clearBosses(); clearOrbs(); clearItems(); clearBolts(); resetMeteors(); clearEffects();
-  M.hpMul = CONFIG.mobs.easeHp; M.speedMul = CONFIG.mobs.easeSpeed;
+  M.hpMul = CONFIG.mobs.easeHp; M.speedMul = CONFIG.mobs.easeSpeed * CONFIG.mobs.speedMul;
   resetSpawner(G.rng);
   updateZoom();
   G.mode = 'play';
@@ -118,12 +118,17 @@ function updateZoom() {
   G.spawnR = CONFIG.spawn.radius * step / V.baseShort;
 }
 
-/** 탭: 메테오를 배웠고 마력이 가득 찼을 때만 다음 틱에 메테오 발사 */
-export function queueTap(wx, wy) {
+/**
+ * 메테오 버튼(또는 Space): 메테오를 배웠고 마력이 가득 찼을 때만. 낙하 지점 = 누른 순간 법사가 서 있는 자리.
+ * 판정은 다음 틱에서(공정성). 'tap' 모드(옛 방식)일 때만 wx, wy 를 씀
+ */
+export function queueMeteor(wx, wy) {
   if (G.mode !== 'play' || !G.player.alive || !G.meteorLearned || G.mana < CONFIG.mana.max) return false;
+  if (CONFIG.meteor.target === 'center' || wx === undefined) { wx = G.player.x; wy = G.player.y; }
   G.taps.push(wx, wy);
   return true;
 }
+export const queueTap = queueMeteor;
 
 // 마력용 주변 칸 오프셋(칸 중심 거리 기준)
 const nearOffs = [];
@@ -262,7 +267,7 @@ export function tick() {
   {
     const MB = CONFIG.mobs, f = Math.min(1, G.time / MB.easeTime);
     M.hpMul = MB.easeHp + (1 - MB.easeHp) * f;
-    M.speedMul = (MB.easeSpeed + (1 - MB.easeSpeed) * f) * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1);
+    M.speedMul = (MB.easeSpeed + (1 - MB.easeSpeed) * f) * MB.speedMul * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1);
   }
   if (G.starT > 0) G.starT = Math.max(0, G.starT - dt);
   if (G.slowT > 0) G.slowT = Math.max(0, G.slowT - dt);

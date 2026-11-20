@@ -132,7 +132,7 @@
   "item.fury.name": "Lonjakan Mana",
   "item.chest.name": "Peti Harta",
   "learn.title": "Meteor dipelajari!",
-  "learn.desc": "Saat mana penuh, ketuk tempat monster akan datang. Meteormu sendiri bisa membunuhmu.",
+  "learn.desc": "Mana penuh? Tekan tombol Meteor! Jatuh di tempatmu berdiri, jadi kumpulkan monster lalu kabur.",
   "tut.bolt": "Peluru sihir otomatis menembak monster terdekat. Meteor terbuka di level 5",
   "chain": "{n} KOMBO",
   "settings.flick": "Usap untuk dash",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Tembak Cepat",
   "card.boltRate.desc": "Laju tembak peluru +25%",
   "card.boltPierce.name": "Peluru Tembus",
-  "card.boltPierce.desc": "Peluru menembus +1"
+  "card.boltPierce.desc": "Peluru menembus +1",
+  "ring.warn": "Kepungan datang! Cari celahnya",
+  "settings.music": "Musik",
+  "settings.sfx": "Efek suara",
+  "settings.hint": "Panah kabur"
 }

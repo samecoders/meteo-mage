@@ -30,6 +30,9 @@ function defaults() {
       sound: true,
       vibrate: true,
       flickDash: true,       // 손가락을 튕기듯 쓸면 대시
+      escapeHint: true,      // 내 메테오 반경 안에서 탈출 방향 화살표
+      musicVolume: CONFIG.audio.musicVolume,
+      sfxVolume: CONFIG.audio.sfxVolume,
       quality: 'auto',       // auto | high | mid | low
       nickname: '',
       country: '',
@@ -69,6 +72,9 @@ function sanitize(raw) {
   if (typeof s.sound === 'boolean') d.settings.sound = s.sound;
   if (typeof s.vibrate === 'boolean') d.settings.vibrate = s.vibrate;
   if (typeof s.flickDash === 'boolean') d.settings.flickDash = s.flickDash;
+  if (typeof s.escapeHint === 'boolean') d.settings.escapeHint = s.escapeHint;
+  if (isNum(s.musicVolume)) d.settings.musicVolume = Math.max(0, Math.min(1, s.musicVolume));
+  if (isNum(s.sfxVolume)) d.settings.sfxVolume = Math.max(0, Math.min(1, s.sfxVolume));
   if (['auto', 'high', 'mid', 'low'].includes(s.quality)) d.settings.quality = s.quality;
   if (isStr(s.nickname)) d.settings.nickname = s.nickname.slice(0, 12);
   if (isStr(s.country) && /^[A-Z]{2}$/.test(s.country)) d.settings.country = s.country;

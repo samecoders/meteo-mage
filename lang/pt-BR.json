@@ -132,7 +132,7 @@
   "item.fury.name": "Surto de mana",
   "item.chest.name": "Baú do tesouro",
   "learn.title": "Meteoro aprendido!",
-  "learn.desc": "Com a mana cheia, toque onde os monstros vão chegar. Seu próprio meteoro te mata.",
+  "learn.desc": "Mana cheia? Aperte o botão de Meteoro! Ele cai onde você está: junte os monstros e fuja.",
   "tut.bolt": "Os disparos mágicos atacam sozinhos o monstro mais próximo. Você aprende Meteoro no nível 5",
   "chain": "{n} COMBO",
   "settings.flick": "Deslizar para dash",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Rajada",
   "card.boltRate.desc": "Cadência dos disparos +25%",
   "card.boltPierce.name": "Perfurante",
-  "card.boltPierce.desc": "Disparos atravessam +1"
+  "card.boltPierce.desc": "Disparos atravessam +1",
+  "ring.warn": "Cerco chegando! Ache a brecha",
+  "settings.music": "Música",
+  "settings.sfx": "Efeitos sonoros",
+  "settings.hint": "Seta de fuga"
 }

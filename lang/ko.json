@@ -132,7 +132,7 @@
   "item.fury.name": "마력 폭주",
   "item.chest.name": "보물상자",
   "learn.title": "메테오 습득!",
-  "learn.desc": "마력이 차면 몹이 올 자리를 탭하세요. 내 메테오에 맞으면 죽습니다.",
+  "learn.desc": "마력이 차면 메테오 버튼! 내 자리에 떨어지니 몹을 모아 놓고 도망치세요.",
   "tut.bolt": "마법탄은 가장 가까운 몹에게 저절로 나갑니다. 레벨 5에 메테오를 배워요",
   "chain": "{n} 콤보",
   "settings.flick": "튕기기 대시",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "빠른 연사",
   "card.boltRate.desc": "마법탄 발사 속도 +25%",
   "card.boltPierce.name": "관통탄",
-  "card.boltPierce.desc": "마법탄 관통 +1"
+  "card.boltPierce.desc": "마법탄 관통 +1",
+  "ring.warn": "포위 공격이 옵니다! 틈을 찾으세요",
+  "settings.music": "음악",
+  "settings.sfx": "효과음",
+  "settings.hint": "탈출 방향 표시"
 }

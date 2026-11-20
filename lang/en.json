@@ -132,7 +132,7 @@
   "item.fury.name": "Mana Surge",
   "item.chest.name": "Treasure Chest",
   "learn.title": "Meteor learned!",
-  "learn.desc": "When mana is full, tap where the mobs are heading. Your own meteor kills you.",
+  "learn.desc": "Mana full? Hit the Meteor button! It falls where you stand, so gather the mobs and run.",
   "tut.bolt": "Magic bolts fire at the nearest mob on their own. You learn Meteor at level 5",
   "chain": "{n} COMBO",
   "settings.flick": "Flick to dash",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Rapid Fire",
   "card.boltRate.desc": "Bolt fire rate +25%",
   "card.boltPierce.name": "Piercing Bolt",
-  "card.boltPierce.desc": "Bolts pierce +1"
+  "card.boltPierce.desc": "Bolts pierce +1",
+  "ring.warn": "Encirclement incoming! Find the gap",
+  "settings.music": "Music",
+  "settings.sfx": "Sound effects",
+  "settings.hint": "Escape arrow"
 }

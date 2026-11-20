@@ -132,7 +132,7 @@
   "item.fury.name": "Manarausch",
   "item.chest.name": "Schatztruhe",
   "learn.title": "Meteor gelernt!",
-  "learn.desc": "Bei vollem Mana dorthin tippen, wo die Monster hinlaufen. Dein eigener Meteor tötet dich.",
+  "learn.desc": "Mana voll? Drück den Meteor-Knopf! Er fällt dorthin, wo du stehst – sammle die Monster und lauf weg.",
   "tut.bolt": "Zauberblitze treffen automatisch das nächste Monster. Auf Stufe 5 lernst du Meteor",
   "chain": "{n} COMBO",
   "settings.flick": "Wischen zum Sprinten",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Schnellfeuer",
   "card.boltRate.desc": "Feuerrate der Blitze +25 %",
   "card.boltPierce.name": "Durchschlag",
-  "card.boltPierce.desc": "Blitze durchdringen +1"
+  "card.boltPierce.desc": "Blitze durchdringen +1",
+  "ring.warn": "Einkesselung naht! Finde die Lücke",
+  "settings.music": "Musik",
+  "settings.sfx": "Soundeffekte",
+  "settings.hint": "Fluchtpfeil"
 }

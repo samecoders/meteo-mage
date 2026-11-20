@@ -132,7 +132,7 @@
   "item.fury.name": "Furia de maná",
   "item.chest.name": "Cofre del tesoro",
   "learn.title": "¡Meteoro aprendido!",
-  "learn.desc": "Con el maná lleno, toca donde van a llegar los monstruos. Tu propio meteoro te mata.",
+  "learn.desc": "¿Maná lleno? ¡Pulsa el botón de Meteoro! Cae donde estás: reúne a los monstruos y huye.",
   "tut.bolt": "Los proyectiles mágicos atacan solos al monstruo más cercano. Aprendes Meteoro en el nivel 5",
   "chain": "{n} COMBO",
   "settings.flick": "Deslizar para esquivar",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "Ráfaga",
   "card.boltRate.desc": "Cadencia de proyectiles +25%",
   "card.boltPierce.name": "Perforante",
-  "card.boltPierce.desc": "Los proyectiles atraviesan +1"
+  "card.boltPierce.desc": "Los proyectiles atraviesan +1",
+  "ring.warn": "¡Llega un cerco! Busca el hueco",
+  "settings.music": "Música",
+  "settings.sfx": "Efectos de sonido",
+  "settings.hint": "Flecha de escape"
 }

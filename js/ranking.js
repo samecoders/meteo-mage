@@ -32,6 +32,7 @@ async function rpc(name, body) {
  * 서버(SQL 함수 submit_score)에서 불가능한 기록·분당 제출 횟수·닉네임을 검사한다.
  */
 export async function submitScore(rec) {
+  if (CONFIG.difficulty !== R.rankedDifficulty) return { ok: false, offline: true, notConfigured: true };   // normal 만 등록
   if (!rankingEnabled()) return { ok: false, offline: true, notConfigured: !(R.supabaseUrl && R.supabaseAnonKey) };
   try {
     const r = await rpc('submit_score', {

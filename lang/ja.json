@@ -132,7 +132,7 @@
   "item.fury.name": "魔力暴走",
   "item.chest.name": "宝箱",
   "learn.title": "メテオ習得！",
-  "learn.desc": "魔力が満タンになったら、モンスターが来る場所をタップ。自分のメテオに当たると死にます。",
+  "learn.desc": "魔力が満タンになったらメテオボタン！自分の場所に落ちるので、モンスターを集めて逃げましょう。",
   "tut.bolt": "魔法弾はいちばん近いモンスターに自動で飛びます。レベル5でメテオを覚えます",
   "chain": "{n} コンボ",
   "settings.flick": "フリックでダッシュ",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "連射",
   "card.boltRate.desc": "魔法弾の発射速度 +25%",
   "card.boltPierce.name": "貫通弾",
-  "card.boltPierce.desc": "魔法弾の貫通 +1"
+  "card.boltPierce.desc": "魔法弾の貫通 +1",
+  "ring.warn": "包囲攻撃が来る！すき間を探せ",
+  "settings.music": "音楽",
+  "settings.sfx": "効果音",
+  "settings.hint": "脱出方向の表示"
 }

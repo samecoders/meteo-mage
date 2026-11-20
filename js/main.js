@@ -1,5 +1,5 @@
 // 부팅, 화면 크기, 메인 루프(고정 틱 + 보간 렌더), 게임 흐름.
-import { CONFIG, TICK_DT } from './config.js';
+import { CONFIG, TICK_DT, applyDifficulty } from './config.js';
 import { save } from './save.js';
 import { initI18n, t } from './i18n.js';
 import { loadAssets, SPRITE_ORDER, SPR } from './assets.js';
@@ -7,8 +7,8 @@ import { buildAtlas } from './render/atlas.js';
 import { Renderer } from './render/gl.js';
 import { batches, allocBatches, fillMobs, fillDecor, fillTop, fillUnder, fillParticlesBatch, fillOver, emitVisuals } from './render/sprites.js';
 import { updateEffects, shake, setQualityLevel, getQualityLevel, setSpriteRects, addSpriteFx } from './render/effects.js';
-import { G, initSim, newGame, tick, queueTap, learnMeteor, resumePush } from './game.js';
-import { M } from './sim/mobs.js';
+import { G, initSim, newGame, tick, queueMeteor, learnMeteor, resumePush } from './game.js';
+import { M, B } from './sim/mobs.js';
 import { dropItem, applyItem, KIND } from './items.js';
 import { autoplay, startAutoplay, autoplayStep } from './autoplay.js';
 import { input, initInput, updateInput, resetInput } from './input.js';
@@ -16,12 +16,15 @@ import { updatePlayer } from './player.js';
 import { tryDash, dashPreview } from './dash.js';
 import { buyShield, buyDash } from './shop.js';
 import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
-import { sfx, unlockAudio, setSound, suspendAudio, starMusic } from './audio.js';
+import { sfx, unlockAudio, setSound, suspendAudio, setVolumes, setMusicScene, duckMusic, playMusic, playJingle, preloadMusic, audioReady, setOnUnlock } from './audio.js';
+import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
 import { submitScore } from './ranking.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
+// ?difficulty=easy|normal|hard : 시험용(랭킹은 normal 만 등록). 화면에는 아직 난이도 선택 없음
+if (params.get('difficulty')) applyDifficulty(params.get('difficulty'));
 const BENCH_N = parseBench();
 const AUTOPLAY = params.get('autoplay') === '1';
 const DEBUG = params.get('debug') === '1' || BENCH_N > 0 || AUTOPLAY;
@@ -73,10 +76,11 @@ function worldToScreen(x, y, out) {
 
 // ------------------------------------------------------------ 게임 흐름
 function startGame() {
-  unlockAudio();
+  if (!BENCH_N) unlockAudio();
   newGame({ skin: save.data.skinEquipped, hero: save.data.heroEquipped, bench: BENCH_N > 0, benchCount: BENCH_N });
   if (BENCH_N > 0) setupBench(G, BENCH_N);
   view.camX = G.player.x; view.camY = G.player.y; view.leadX = 0; view.leadY = 0;
+  G.escapeHint = CONFIG.meteor.escapeHint && save.data.settings.escapeHint;   // 그림 전용
   view.curShort = G.zoomShort;
   acc = 0; alpha = 0;
   resetInput();
@@ -96,7 +100,6 @@ function toTitle() {
   G.mode = 'title';
   UI.stopTutorial();
   UI.hideLearn();
-  starMusic(false);
   UI.showHud(false);
   UI.showScreen('title');
 }
@@ -121,7 +124,7 @@ function showLevelUp() {
   if (isLearnLevel(level)) { showLearn(); return; }
   const { special, cards } = cardsFor(G, level);
   if (!cards.length) { G.levelQueue.shift(); showLevelUp(); return; }
-  sfx.levelUp();
+  playJingle('levelup');
   addSpriteFx(0, 4, SPR.fx_levelup, 1, 0.9, 0, -10, false, true);
   UI.showLevelUp(level, special, cards, (id) => {
     applyCard(G, id);
@@ -140,7 +143,7 @@ function showLearn() {
   G.mode = 'learn';
   learnMeteor();
   UI.showScreen(null);
-  sfx.learn();
+  playJingle('meteor');
   vibrate(80);
   worldToScreen(G.player.x, G.player.y, tmp2);
   UI.showLearn(tmp2[0], () => {
@@ -154,7 +157,6 @@ function showLearn() {
 
 async function gameOver() {
   UI.stopTutorial();
-  starMusic(false);
   const s = G.stats;
   const rec = {
     kills: s.kills, surviveSec: Math.floor(G.time), level: s.level, maxCombo: s.maxCombo,
@@ -182,14 +184,15 @@ function processEvents() {
   for (let i = 0; i < ev.length; i++) {
     const e = ev[i];
     switch (e.type) {
-      case 'explosion': sfx.explosion(G.skin, e.kills); if (e.kills > 500) vibrate(Math.min(120, 20 + e.kills / 100)); break;
+      case 'explosion': sfx.explosion(G.skin, e.kills); duckMusic(); if (e.kills > 500) vibrate(Math.min(120, 20 + e.kills / 100)); break;
       case 'combo': {
         UI.comboPopup(e.kills, e.mult);
         worldToScreen(e.x, e.y, tmp2);
         UI.killPopup(tmp2[0], tmp2[1], e.kills);
         break;
       }
-      case 'launch': sfx.launch(); break;
+      case 'launch': case 'launch2': sfx.launch(); break;
+      case 'ringWarn': UI.toast(t('ring.warn'), 'warn'); sfx.ringWarn(); vibrate(60); break;
       case 'manaFull': UI.manaFullFx(); sfx.manaFull(); vibrate(30); break;
       case 'dashReady': UI.dashReadyFx(); sfx.dashReady(); break;
       case 'levelup': showLevelUp(); break;
@@ -212,7 +215,7 @@ function processEvents() {
       case 'shieldBreak': UI.toast(t('shield.broken'), 'mana'); sfx.shield(); vibrate(60); break;
       case 'death': sfx.death(); vibrate(250); break;
       case 'hurt': sfx.hurt(); vibrate(60); UI.hurtFx(); break;
-      case 'gameover': gameOver(); break;
+      case 'gameover': playJingle('gameover', true); gameOver(); break;
     }
   }
   ev.length = 0;
@@ -318,7 +321,7 @@ function frame(now) {
   const renderMs = performance.now() - r0;
 
   if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro' || G.mode === 'learn') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
-  starMusic(G.mode === 'play' && G.player.alive && G.starT > 0 && !G.bench && !AUTOPLAY);
+  updateMusic(now);
   if (ticks) simAvg = simAvg * 0.9 + (simMs / ticks) * 0.1;
   renderAvg = renderAvg * 0.9 + renderMs * 0.1;
   if (G.bench) benchFrame(frameMs, simMs, ticks, renderMs);
@@ -333,10 +336,45 @@ function frame(now) {
   }
 }
 
+// ------------------------------------------------------------ 배경음악: 장면에 맞는 곡(2초 크로스페이드)
+let battleUntil = 0;
+const IN_GAME = { play: 1, paused: 1, levelup: 1, learn: 1, intro: 1 };
+function updateMusic(now) {
+  if (!audioReady() || G.bench || AUTOPLAY) return;
+  const A = CONFIG.audio, inGame = !!IN_GAME[G.mode];
+  let want = currentMusic();
+  if (G.mode === 'title') want = 'title';
+  else if (inGame) {
+    if (G.starT > 0 && G.player.alive) want = 'star';           // 무적의 별: 끝나면 이전 곡으로
+    else {
+      let boss = false;
+      for (let i = 0; i < B.length; i++) if (B[i].active) { boss = true; break; }
+      const crisis = boss || M.n > A.battleMobs;               // 위기: 보스가 있거나 몹이 2만 넘음
+      if (crisis) battleUntil = now + A.battleRelease * 1000;  // 풀리고 10초 뒤 되돌아감
+      want = crisis || now < battleUntil ? 'battle' : 'field';
+    }
+  }
+  setMusicScene(inGame);
+  if (want && want !== currentMusic() && G.mode !== 'over') playMusic(want);
+}
+function onAudioUnlocked() {
+  if (G.bench || AUTOPLAY) return;   // 측정·자동 플레이는 음악 없음
+  updateMusic(performance.now());
+  // 타이틀 곡 먼저, 나머지는 천천히 미리(게임 시작을 막지 않음)
+  setTimeout(() => preloadMusic(['field']), 1500);
+  setTimeout(() => preloadMusic(['levelup', 'meteor', 'battle']), 4000);
+  setTimeout(() => preloadMusic(['star', 'gameover']), 7000);
+}
+
 // ------------------------------------------------------------ 부팅
 async function boot() {
   save.load();
   setSound(save.data.settings.sound);
+  setVolumes(save.data.settings.musicVolume, save.data.settings.sfxVolume);
+  setOnUnlock(onAudioUnlocked);
+  // 첫 터치(어디든) 전에는 소리를 내지 않음
+  window.addEventListener('pointerdown', () => { if (!BENCH_N && !AUTOPLAY) unlockAudio(); }, true);
+  window.addEventListener('keydown', () => { if (!BENCH_N && !AUTOPLAY) unlockAudio(); }, true);
   canvas = document.getElementById('gl');
   try {
     renderer = new Renderer(canvas);
@@ -365,11 +403,8 @@ async function boot() {
   initInput(document.getElementById('touch'), {
     blocked: () => G.mode !== 'play',
     onAnyPress: unlockAudio,
-    onTap: (x, y) => {
-      if (G.mode !== 'play' || !G.player.alive || !G.meteorLearned) return;   // 레벨 4까지는 탭해도 아무 일 없음
-      screenToWorld(x, y, tmp2);
-      if (!queueTap(tmp2[0], tmp2[1])) { UI.manaShake(); sfx.deny(); }
-    },
+    onTap: () => {},          // 평원을 톡 눌러도 아무 일 없음(이동 조이스틱만). 메테오는 버튼 / Space
+    onMeteor: () => fireMeteor(),
     onDashHold: () => {},
     onDash: () => { if (G.mode === 'play' && tryDash(G, input)) sfx.dash(); },
     // 튕기기 대시: 이동하던 손가락을 빠르게 쓸고 뗌 → 그 방향으로
@@ -389,7 +424,9 @@ async function boot() {
     dashDown: () => { if (G.mode === 'play') { unlockAudio(); input.dashHeld = true; } },
     dashUp: () => { if (input.dashHeld) { input.dashHeld = false; if (G.mode === 'play' && tryDash(G, input)) sfx.dash(); } },
     dashCancel: () => { input.dashHeld = false; },
+    meteor: () => fireMeteor(),
     onSound: (on) => setSound(on),
+    onVolume: () => setVolumes(save.data.settings.musicVolume, save.data.settings.sfxVolume),
     onQuality: () => applyQualitySetting(),
     debug: DEBUG,
     // ?debug=1 : 아이템을 법사 옆에 바로 소환 / 레벨 올리기 / 무적
@@ -414,6 +451,13 @@ async function boot() {
     view.camX = G.player.x; view.camY = G.player.y;
     UI.showHud(true);
   } else UI.showScreen(save.data.settings.nickname ? 'title' : 'nick');
+}
+
+/** 메테오 버튼 / Space: 마력이 가득 차면 지금 법사가 서 있는 자리에 메테오 */
+function fireMeteor() {
+  if (G.mode !== 'play' || !G.player.alive || !G.meteorLearned) return;
+  unlockAudio();
+  if (!queueMeteor()) { UI.manaShake(); sfx.deny(); }
 }
 
 function runShop(kind) {

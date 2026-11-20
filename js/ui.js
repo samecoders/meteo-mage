@@ -177,6 +177,8 @@ export function initUI(h) {
   $('btnPause').addEventListener('pointerdown', (e) => { e.stopPropagation(); H.pause(); });
   $('btnShield').addEventListener('pointerdown', (e) => { e.preventDefault(); H.runShop('shield'); });
   $('btnDashUp').addEventListener('pointerdown', (e) => { e.preventDefault(); H.runShop('dash'); });
+  // 메테오 버튼(마력 링 자리 그대로): 누르면 지금 법사 자리에 메테오
+  $('mana').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); H.meteor(); });
   const db = $('btnDash');
   db.addEventListener('pointerdown', (e) => { e.preventDefault(); try { db.setPointerCapture(e.pointerId); } catch (er) { /* */ } H.dashDown(); });
   db.addEventListener('pointerup', (e) => { e.preventDefault(); H.dashUp(); });
@@ -197,6 +199,11 @@ export function initUI(h) {
   click('stSound', () => { save.data.settings.sound = !save.data.settings.sound; save.write(); H.onSound(save.data.settings.sound); refreshSettings(); });
   click('stVib', () => { save.data.settings.vibrate = !save.data.settings.vibrate; save.write(); refreshSettings(); });
   click('stFlick', () => { save.data.settings.flickDash = !save.data.settings.flickDash; save.write(); refreshSettings(); });
+  click('stHint', () => { save.data.settings.escapeHint = !save.data.settings.escapeHint; save.write(); refreshSettings(); });
+  for (const [id, key] of [['stMusic', 'musicVolume'], ['stSfx', 'sfxVolume']]) {
+    $(id).addEventListener('input', (e) => { save.data.settings[key] = Math.round(+e.target.value) / 100; H.onVolume(); });
+    $(id).addEventListener('change', () => { save.write(); if (key === 'sfxVolume') sfx.click(); });
+  }
   $('stQuality').addEventListener('change', (e) => { save.data.settings.quality = e.target.value; save.write(); H.onQuality(); });
   $('nName').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitNick(); });
 
@@ -703,6 +710,10 @@ function refreshSettings() {
   $('stSound').classList.toggle('off', !s.sound);
   $('stVib').textContent = s.vibrate ? t('on') : t('off');
   $('stVib').classList.toggle('off', !s.vibrate);
+  $('stHint').textContent = s.escapeHint ? t('on') : t('off');
+  $('stHint').classList.toggle('off', !s.escapeHint);
+  $('stMusic').value = Math.round(s.musicVolume * 100);
+  $('stSfx').value = Math.round(s.sfxVolume * 100);
   $('stFlick').textContent = s.flickDash ? t('on') : t('off');
   $('stFlick').classList.toggle('off', !s.flickDash);
   const q = $('stQuality');

@@ -1,20 +1,38 @@
-// 효과음: Web Audio 합성(음원 파일 없음). 첫 터치 이후에만 재생. 동시 재생 최대 8개.
-let ctx = null, master = null, noiseBuf = null;
+// 소리: 효과음(Web Audio 합성) + 배경음악(js/music.js). 첫 터치 이후에만 재생. 효과음 동시 재생 최대 10개.
+// 연결: 효과음 → sfxBus(효과음 볼륨) ┐
+//       음악 → duck(폭발 덕킹) → musicBus(음악 볼륨 × 장면) ┴→ master(소리 켜기/끄기) → 스피커
+import { CONFIG } from './config.js';
+import { initMusic, playMusic, playJingle, stopMusic, preloadMusic } from './music.js';
+
+let ctx = null, master = null, noiseBuf = null, sfxBus = null, musicBus = null, duckBus = null;
 let enabled = true, voices = 0, lastKill = 0, lastBolt = 0;
-const MAX_VOICES = 8;
+let musicVol = CONFIG.audio.musicVolume, sfxVol = CONFIG.audio.sfxVolume, scene = 1;
+const MAX_VOICES = 10;
+let onUnlock = null;
+
+/** 첫 터치 때 한 번: 오디오 시작 후 부를 함수(타이틀 음악 등) */
+export function setOnUnlock(fn) { onUnlock = fn; }
 
 export function unlockAudio() {
   try {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
-      ctx = new AC();
+      // 32kHz: 긴 음악 파일을 풀어 둘 때 메모리를 줄임(효과음·음악 모두 충분한 음질)
+      try { ctx = new AC({ sampleRate: 32000 }); } catch (e) { ctx = new AC(); }
       master = ctx.createGain();
-      master.gain.value = enabled ? 0.55 : 0;
+      master.gain.value = enabled ? 0.6 : 0;
       master.connect(ctx.destination);
+      sfxBus = ctx.createGain(); sfxBus.connect(master);
+      musicBus = ctx.createGain(); musicBus.connect(master);
+      duckBus = ctx.createGain(); duckBus.connect(musicBus);
+      applyVolumes();
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      initMusic(ctx, duckBus);
+      if (ctx.state === 'suspended') ctx.resume();
+      if (onUnlock) setTimeout(onUnlock, 0);
     }
     if (ctx.state === 'suspended') ctx.resume();
   } catch (e) { ctx = null; }
@@ -22,8 +40,33 @@ export function unlockAudio() {
 
 export function setSound(on) {
   enabled = on;
-  if (master) master.gain.value = on ? 0.55 : 0;
+  if (master) master.gain.value = on ? 0.6 : 0;
 }
+
+function applyVolumes() {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  sfxBus.gain.setTargetAtTime(sfxVol * 1.5, now, 0.02);
+  musicBus.gain.setTargetAtTime(musicVol * scene * 0.9, now, 0.15);
+}
+/** 음악·효과음 볼륨(0~1) */
+export function setVolumes(music, sfx) { musicVol = music; sfxVol = sfx; applyVolumes(); }
+/** 장면별 음악 크기: 경기 중에는 효과음이 들리게 살짝 낮게 */
+export function setMusicScene(inGame) {
+  const s = inGame ? CONFIG.audio.inGameMusic : 1;
+  if (s !== scene) { scene = s; applyVolumes(); }
+}
+/** 메테오 폭발: 음악을 잠깐 줄였다 되돌림 */
+export function duckMusic() {
+  if (!ctx) return;
+  const g = duckBus.gain, now = ctx.currentTime, A = CONFIG.audio;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value, now);
+  g.linearRampToValueAtTime(A.duckLevel, now + 0.03);
+  g.linearRampToValueAtTime(1, now + A.duckTime);
+}
+export { playMusic, playJingle, stopMusic, preloadMusic };
+export function audioReady() { return !!ctx; }
 
 export function suspendAudio(s) {
   if (!ctx) return;
@@ -52,7 +95,7 @@ function tone(type, f0, f1, dur, vol, delay) {
   o.frequency.setValueAtTime(f0, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
   env(g, t, 0.005, vol, dur);
-  o.connect(g); g.connect(master);
+  o.connect(g); g.connect(sfxBus);
   o.start(t);
   track(o, (delay || 0) + dur + 0.05);
 }
@@ -66,7 +109,7 @@ function noise(filterType, f0, f1, q, dur, vol, delay) {
   f.frequency.setValueAtTime(f0, t);
   f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
   env(g, t, 0.01, vol, dur);
-  s.connect(f); f.connect(g); g.connect(master);
+  s.connect(f); f.connect(g); g.connect(sfxBus);
   s.start(t);
   track(s, (delay || 0) + dur + 0.05);
 }
@@ -120,21 +163,11 @@ export const sfx = {
     tone('triangle', 1400, 700, 0.05, 0.025);
   },
   nearMiss() { tone('triangle', 1200, 1800, 0.15, 0.1); },
+  ringWarn() { [0, 0.18, 0.36].forEach((d) => tone('square', 880, 660, 0.12, 0.1, d)); },
 };
 
 /** 미리보기용(상점): 모양 효과음 */
 export function previewExplosion(skin) { sfx.explosion(skin, 200); }
 
-// ------------------------------------------------------------ 무적의 별 전용 음악(짧은 반복 아르페지오)
-let starTimer = 0, starStep = 0;
-const STAR_NOTES = [523, 659, 784, 1047, 784, 659, 587, 740, 880, 1175, 880, 740];
-export function starMusic(on) {
-  if (on && !starTimer) {
-    starStep = 0;
-    starTimer = setInterval(() => {
-      const f = STAR_NOTES[starStep++ % STAR_NOTES.length];
-      tone('square', f, f, 0.09, 0.06);
-      if (starStep % 2) tone('triangle', f / 2, f / 2, 0.12, 0.08);
-    }, 105);
-  } else if (!on && starTimer) { clearInterval(starTimer); starTimer = 0; }
-}
+// 무적의 별 음악은 배경음악(bgm_star)으로 — js/music.js
+export function starMusic() {}

@@ -132,7 +132,7 @@
   "item.fury.name": "魔力暴走",
   "item.chest.name": "宝箱",
   "learn.title": "习得陨石！",
-  "learn.desc": "魔力满后，点击怪物将要到达的位置。被自己的陨石砸中会死。",
+  "learn.desc": "魔力满了就按陨石按钮！陨石会落在你的位置，把怪物聚过来再逃开。",
   "tut.bolt": "魔法弹会自动射向最近的怪物。5级时学会陨石",
   "chain": "{n} 连击",
   "settings.flick": "滑动冲刺",
@@ -141,5 +141,9 @@
   "card.boltRate.name": "快速连射",
   "card.boltRate.desc": "魔法弹射速 +25%",
   "card.boltPierce.name": "穿透弹",
-  "card.boltPierce.desc": "魔法弹穿透 +1"
+  "card.boltPierce.desc": "魔法弹穿透 +1",
+  "ring.warn": "包围攻击来袭！寻找缺口",
+  "settings.music": "音乐",
+  "settings.sfx": "音效",
+  "settings.hint": "显示逃脱方向"
 }

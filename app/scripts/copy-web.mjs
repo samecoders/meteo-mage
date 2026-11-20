@@ -14,7 +14,8 @@ const skip = (p) => {
   return b.startsWith('Gemini_Generated_Image_') || b === 'README.md';
 };
 for (const f of ['index.html', 'manifest.webmanifest']) cpSync(join(root, f), join(www, f));
-for (const d of ['css', 'js', 'lang', 'image']) {
+for (const d of ['css', 'js', 'lang', 'image', 'audio']) {
+  if (!existsSync(join(root, d))) continue;   // audio/ 는 음악 파일을 넣었을 때만
   cpSync(join(root, d), join(www, d), { recursive: true, filter: (src) => !skip(src) });
 }
 // 앱 전용: Capacitor 런타임(registerPlugin 등)을 넣고 index.html 에서 게임보다 먼저 불러옴
