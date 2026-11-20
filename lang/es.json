@@ -51,7 +51,7 @@
   "rank.noNick": "Elige un nombre en Ajustes para entrar en la clasificación",
   "rank.rejected": "La puntuación no fue aceptada",
   "rank.offline": "Sin conexión — récords de este dispositivo",
-  "rank.local": "Servidor de clasificación sin configurar — récords del dispositivo",
+  "rank.local": "Clasificación no disponible: tu mejor marca en este dispositivo",
   "rank.today": "Hoy",
   "rank.week": "Esta semana",
   "rank.all": "Siempre",
@@ -145,5 +145,10 @@
   "ring.warn": "¡Llega un cerco! Busca el hueco",
   "settings.music": "Música",
   "settings.sfx": "Efectos de sonido",
-  "settings.hint": "Flecha de escape"
+  "settings.hint": "Flecha de escape",
+  "rank.weekRank": "Esta semana: n.º {rank}",
+  "rank.impossible": "Esta puntuación no fue aceptada y no se publicó",
+  "rank.badNick": "Cambia tu nombre en Ajustes. Este nombre no se puede usar",
+  "rank.queued": "Sin conexión: se enviará en el próximo inicio con conexión",
+  "rank.noCountry": "Elige tu país en Ajustes"
 }

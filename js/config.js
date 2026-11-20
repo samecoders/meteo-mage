@@ -7,6 +7,12 @@
 // 다른 버튼·숫자·알림·팝업은 모두 위쪽에. ui.js 의 checkHudLayout() 이 이 값으로 배치를 검사한다.
 export const HUD_BOTTOM_FORBIDDEN = 0.4;
 
+// ---- 랭킹 서버(Supabase). 둘 중 하나라도 비어 있으면 랭킹을 끄고 내 기기 최고 기록만 보여 줌.
+// 공개 키(sb_publishable_…)만 넣는다. 비밀 키(sb_secret_…)는 절대 코드에 넣지 않는다.
+export const SUPABASE_URL = '';   // 프로젝트 URL 예: 'https://abcd1234.supabase.co'
+export const SUPABASE_KEY = '';   // 'sb_publishable_' 로 시작하는 공개 키
+export const RANKING_SEASON = 3;  // 규칙이 바뀌면 올리고 tools/spawn_cap.html 로 상한표 SQL 을 다시 만들 것
+
 export const CONFIG = {
   // ------------------------------------------------------------ 화면 배치(HTML UI)
   ui: {
@@ -476,10 +482,11 @@ export const CONFIG = {
   // ------------------------------------------------------------ 랭킹 (Supabase)
   // 비워 두면 오프라인 모드(내 기기 기록만 표시)
   ranking: {
-    supabaseUrl: '',       // 예: 'https://abcd1234.supabase.co'
-    supabaseAnonKey: '',   // 프로젝트 Settings → API 의 anon public 키
-    timeoutMs: 6000,
-    season: 3,             // 2026-11-20 2차 수정(메테오 버튼·난이도) → 시즌 3. 이전 기록과 섞이지 않음
+    supabaseUrl: SUPABASE_URL,
+    supabaseKey: SUPABASE_KEY,
+    timeoutMs: 5000,
+    season: RANKING_SEASON,
+    cacheSec: 30,          // 랭킹 화면: 같은 탭은 이 시간 동안 다시 불러오지 않음
     rankedDifficulty: 'normal',   // 이 난이도만 랭킹에 등록
   },
 

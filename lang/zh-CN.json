@@ -51,7 +51,7 @@
   "rank.noNick": "在设置中填写名字即可参加排行",
   "rank.rejected": "成绩未被接受",
   "rank.offline": "离线 — 显示本设备记录",
-  "rank.local": "未设置排行服务器 — 本设备记录",
+  "rank.local": "排行榜未连接 — 本设备最佳成绩",
   "rank.today": "今天",
   "rank.week": "本周",
   "rank.all": "全部",
@@ -145,5 +145,10 @@
   "ring.warn": "包围攻击来袭！寻找缺口",
   "settings.music": "音乐",
   "settings.sfx": "音效",
-  "settings.hint": "显示逃脱方向"
+  "settings.hint": "显示逃脱方向",
+  "rank.weekRank": "本周第{rank}名",
+  "rank.impossible": "此成绩未被认可，未上传",
+  "rank.badNick": "请在设置中修改名字，此名字无法使用",
+  "rank.queued": "离线 — 连接后将在下次启动时上传",
+  "rank.noCountry": "请在设置中选择国家"
 }

@@ -19,7 +19,7 @@ import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
 import { sfx, unlockAudio, setSound, suspendAudio, setVolumes, setMusicScene, duckMusic, playMusic, playJingle, preloadMusic, audioReady, setOnUnlock } from './audio.js';
 import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
-import { submitScore } from './ranking.js';
+import { submitScore, flushPending } from './ranking.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -443,6 +443,8 @@ async function boot() {
 
   last = performance.now();
   requestAnimationFrame(frame);
+  // 지난번에 못 올린 기록은 시작 화면에서 다시 보냄(게임 중에는 서버 요청 없음)
+  setTimeout(() => { if (G.mode === 'title' && !BENCH_N && !AUTOPLAY) flushPending().catch(() => {}); }, 3000);
 
   if (BENCH_N > 0) startGame();
   else if (AUTOPLAY) {

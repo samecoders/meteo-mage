@@ -375,3 +375,7 @@ input.pix { width: 100%; }
 input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yellow); touch-action: pan-x; }
 .panel .set { min-height: 40px; }
 #scrSettings .panel { overflow-y: auto; touch-action: pan-y; }
+
+/* 랭킹 불러오는 중: 빈 줄 모양(깜빡임 없이 은은하게) */
+.rrow.skel { grid-template-columns: 36px 1fr 60px; height: 34px; }
+.rrow.skel span { height: 12px; background: var(--slate); opacity: .6; }

@@ -577,8 +577,11 @@ export function setRankStatus(r) {
   const el = $('oRankStatus');
   if (r.pending) el.textContent = t('rank.submitting');
   else if (r.noNick) el.textContent = t('rank.noNick');
-  else if (r.ok) el.textContent = r.rank ? t('rank.submitted', { rank: fmt(r.rank) }) : t('rank.saved');
-  else if (r.rejected) el.textContent = t('rank.rejected');
+  else if (r.ok) el.textContent = r.rank ? t('rank.weekRank', { rank: fmt(r.rank) }) : t('rank.saved');   // 예: 이번 주 1,234위
+  else if (r.reason === 'too_fast') el.textContent = '';                                       // 조용히 넘어감
+  else if (r.reason === 'impossible') el.textContent = t('rank.impossible');
+  else if (r.reason === 'bad_nickname') el.textContent = t('rank.badNick');
+  else if (r.queued) el.textContent = t('rank.queued');
   else if (r.notConfigured) el.textContent = t('rank.local');
   else el.textContent = t('rank.offline');
 }
@@ -590,13 +593,16 @@ async function openRank(scope) {
   rankScope = scope;
   for (const b of document.querySelectorAll('#rankTabs button')) b.classList.toggle('on', b.dataset.scope === scope);
   const list = $('rankList');
-  list.innerHTML = `<div class="rmsg">${t('rank.loading')}</div>`;
+  // 불러오는 동안 글자 깜빡임 대신 빈 줄 모양
+  list.innerHTML = '<div class="rrow skel"><span></span><span></span><span></span></div>'.repeat(10);
+  $('rankNote').textContent = '';
   $('rankMe').textContent = '';
   const req = ++rankReq;
   const res = await fetchTop(scope, save.data.settings.country);
   if (req !== rankReq) return;
   list.innerHTML = '';
   $('rankNote').textContent = res.offline ? (rankingEnabled() ? t('rank.offline') : t('rank.local')) : '';
+  if (scope === 'country' && !save.data.settings.country) { list.innerHTML = `<div class="rmsg">${t('rank.noCountry')}</div>`; return; }
   if (!res.rows.length) { list.innerHTML = `<div class="rmsg">${t('rank.empty')}</div>`; return; }
   res.rows.forEach((r, i) => {
     const row = document.createElement('div');

@@ -51,7 +51,7 @@
   "rank.noNick": "Set a name in Settings to join the ranking",
   "rank.rejected": "Score was not accepted",
   "rank.offline": "Offline — showing records on this device",
-  "rank.local": "Ranking server not set — device records",
+  "rank.local": "Ranking offline — your best on this device",
   "rank.today": "Today",
   "rank.week": "This week",
   "rank.all": "All time",
@@ -145,5 +145,10 @@
   "ring.warn": "Encirclement incoming! Find the gap",
   "settings.music": "Music",
   "settings.sfx": "Sound effects",
-  "settings.hint": "Escape arrow"
+  "settings.hint": "Escape arrow",
+  "rank.weekRank": "This week: #{rank}",
+  "rank.impossible": "This score was not accepted, so it was not posted",
+  "rank.badNick": "Please change your name in Settings. This name can't be used",
+  "rank.queued": "Offline — will upload on next launch when connected",
+  "rank.noCountry": "Choose your country in Settings"
 }

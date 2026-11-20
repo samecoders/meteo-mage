@@ -51,7 +51,7 @@
   "rank.noNick": "Choisis un nom dans les Paramètres pour entrer au classement",
   "rank.rejected": "Le score n'a pas été accepté",
   "rank.offline": "Hors ligne — records de cet appareil",
-  "rank.local": "Serveur de classement non configuré — records de l'appareil",
+  "rank.local": "Classement indisponible — votre meilleur score sur cet appareil",
   "rank.today": "Aujourd'hui",
   "rank.week": "Cette semaine",
   "rank.all": "Depuis toujours",
@@ -145,5 +145,10 @@
   "ring.warn": "Encerclement en approche ! Trouvez la brèche",
   "settings.music": "Musique",
   "settings.sfx": "Effets sonores",
-  "settings.hint": "Flèche de fuite"
+  "settings.hint": "Flèche de fuite",
+  "rank.weekRank": "Cette semaine : {rank}e",
+  "rank.impossible": "Ce score n'a pas été accepté et n'a pas été publié",
+  "rank.badNick": "Changez votre nom dans les Réglages. Ce nom est interdit",
+  "rank.queued": "Hors ligne — envoi au prochain lancement une fois connecté",
+  "rank.noCountry": "Choisissez votre pays dans les Réglages"
 }

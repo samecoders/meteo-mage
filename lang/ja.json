@@ -51,7 +51,7 @@
   "rank.noNick": "設定で名前を決めるとランキングに参加できます",
   "rank.rejected": "スコアは受理されませんでした",
   "rank.offline": "オフライン — この端末の記録を表示",
-  "rank.local": "ランキングサーバー未設定 — 端末の記録",
+  "rank.local": "ランキングに接続できません — この端末のベスト記録",
   "rank.today": "今日",
   "rank.week": "今週",
   "rank.all": "全期間",
@@ -145,5 +145,10 @@
   "ring.warn": "包囲攻撃が来る！すき間を探せ",
   "settings.music": "音楽",
   "settings.sfx": "効果音",
-  "settings.hint": "脱出方向の表示"
+  "settings.hint": "脱出方向の表示",
+  "rank.weekRank": "今週 {rank}位",
+  "rank.impossible": "この記録は認められないため登録しませんでした",
+  "rank.badNick": "設定で名前を変更してください。この名前は使えません",
+  "rank.queued": "オフライン — 接続されたら次回起動時に送信します",
+  "rank.noCountry": "設定で国を選んでください"
 }

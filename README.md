@@ -364,3 +364,13 @@ supabase/schema.sql
 | 시뮬 | 7.55ms/틱 | 7.34ms/틱 |
 | 렌더 | 1.40ms | 1.35ms |
 | 50ms 넘는 프레임 | 0 | 0 |
+
+## 15. 랭킹 연결 (Supabase)
+
+- 설정: `js/config.js` 맨 위의 `SUPABASE_URL`, `SUPABASE_KEY`(공개 키 `sb_publishable_…`), `RANKING_SEASON`(3). **둘 중 하나라도 비어 있으면 랭킹이 꺼지고 내 기기 최고 기록만 보입니다.** 비밀 키(`sb_secret_`)는 절대 넣지 않습니다.
+- `js/ranking.js` 는 fetch 로 RPC 3개만 부릅니다: `submit_score`, `get_top`, `get_my_rank`. 키는 `apikey` 헤더에만 넣습니다(새 공개 키는 JWT 가 아니라 `Authorization: Bearer` 에 넣지 않음).
+- 게임오버 때 제출하고 "이번 주 N위"를 보여 줍니다. `too_fast` 는 조용히 넘어가고, `impossible`·`bad_nickname` 은 문구로 알립니다. 게임 도중에는 서버 요청이 없습니다.
+- 5초 타임아웃. 실패·오프라인이면 그 판 기록(최고 하나)을 localStorage(`meteor_mage_pending_score`)에 두었다가 다음 실행 때 시작 화면에서 다시 보냅니다.
+- 랭킹 화면은 탭마다 불러오고, 같은 탭은 30초 캐시합니다.
+- `supabase/schema.sql` 은 예전(자체 서버용) 파일이라 새 함수 모양(`p_period`, `spawn_cap` 표)과 다릅니다. 서버는 따로 준비한 것을 씁니다.
+- **스폰 곡선(`spawn.curve`, `curveMul`, 포위 무리 등)이나 시즌을 바꿀 때마다** `tools/spawn_cap.html` 을 열어 SQL 을 다시 만들고 Supabase SQL Editor 에서 실행해야 합니다. (`python tools/serve.py` 후 `http://localhost:8080/tools/spawn_cap.html`)

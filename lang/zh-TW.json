@@ -51,7 +51,7 @@
   "rank.noNick": "在設定中填寫名字即可參加排行",
   "rank.rejected": "成績未被接受",
   "rank.offline": "離線 — 顯示本裝置記錄",
-  "rank.local": "未設定排行伺服器 — 本裝置記錄",
+  "rank.local": "排行榜未連線 — 本裝置最佳成績",
   "rank.today": "今天",
   "rank.week": "本週",
   "rank.all": "全部",
@@ -145,5 +145,10 @@
   "ring.warn": "包圍攻擊來襲！尋找缺口",
   "settings.music": "音樂",
   "settings.sfx": "音效",
-  "settings.hint": "顯示逃脫方向"
+  "settings.hint": "顯示逃脫方向",
+  "rank.weekRank": "本週第{rank}名",
+  "rank.impossible": "此成績未被認可，未上傳",
+  "rank.badNick": "請在設定中修改名字，此名字無法使用",
+  "rank.queued": "離線 — 連線後將在下次啟動時上傳",
+  "rank.noCountry": "請在設定中選擇國家"
 }

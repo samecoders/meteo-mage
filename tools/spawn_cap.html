@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>부정 검사 상한표 SQL 만들기</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; background: #1a1c2c; color: #f4f4f4; }
+  button { font: inherit; font-weight: 700; padding: 10px 18px; margin-right: 8px; cursor: pointer; }
+  textarea { width: 100%; height: 360px; margin-top: 12px; background: #0b0c14; color: #9f9; border: 1px solid #566c86; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+  code { background: #333c57; padding: 1px 5px; }
+  .note { color: #94b0c2; }
+</style>
+</head>
+<body>
+<h1>부정 검사 상한표 SQL</h1>
+<p class="note">현재 설정(<span id="info"></span>)의 스폰 곡선으로 1~120분까지 "그 분까지 나올 수 있는 최대 누적 몹 수 × 1.2" 를 계산합니다.
+<b>스폰 곡선이나 시즌을 바꿀 때마다 다시 만들어 Supabase SQL Editor 에서 실행하세요.</b></p>
+<button id="go">SQL 만들기</button><button id="copy" disabled>복사</button><span id="msg"></span>
+<textarea id="out" readonly placeholder="버튼을 누르면 SQL 이 여기에 나옵니다"></textarea>
+<script type="module">
+import { CONFIG, RANKING_SEASON, applyDifficulty } from '../js/config.js';
+import { targetAt } from '../js/sim/spawn.js';
+
+applyDifficulty('normal');            // 랭킹은 normal 만 등록
+const MARGIN = 1.2, MAX_MIN = 120, TPS = CONFIG.sim.tickRate;
+const S = CONFIG.spawn, B = CONFIG.boss, ring = S.ring;
+document.getElementById('info').textContent = `시즌 ${RANKING_SEASON}, 난이도 ${CONFIG.difficulty}, 곡선 ×${S.curveMul}`;
+
+/** t초까지 나올 수 있는 최대 누적 몹 수(상한).
+ *  - 일반 스폰: 틱마다 min(perTickMax, 그 시각 목표 몹 수) 를 넘을 수 없음(초 단위로 적분)
+ *  - 첫 필드, 포위 무리(고리마다 최대 countMax), 슬라임 왕 분열, 리치 소환(보스가 계속 산다고 가정해 넉넉하게), 보스 자신 */
+function maxSpawned(t) {
+  let total = targetAt(0);
+  for (let s = 0; s < t; s++) total += TPS * Math.min(S.perTickMax, targetAt(s));
+  if (ring.on && t >= ring.from) total += (Math.floor((t - ring.from) / ring.everyMin) + 1) * ring.countMax;
+  const bosses = Math.floor(t / B.interval);
+  total += bosses;
+  for (const k of B.kinds) {
+    if (k.split) total += Math.ceil(bosses / B.kinds.length) * k.split;
+    if (k.summon) total += Math.floor(t / k.every) * k.summon;
+  }
+  return Math.ceil(total);
+}
+
+let sql = '';
+document.getElementById('go').onclick = () => {
+  const rows = [];
+  for (let m = 1; m <= MAX_MIN; m++) rows.push(`(${RANKING_SEASON}, ${m}, ${Math.ceil(maxSpawned(m * 60) * MARGIN)})`);
+  sql = `insert into public.spawn_cap (season, minute, max_total_spawned) values ${rows.join(', ')} on conflict (season, minute) do update set max_total_spawned = excluded.max_total_spawned;`;
+  const out = document.getElementById('out');
+  out.value = sql; out.select();
+  document.getElementById('copy').disabled = false;
+};
+document.getElementById('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(sql); } catch (e) { document.getElementById('out').select(); document.execCommand('copy'); }
+  document.getElementById('msg').textContent = '복사했습니다';
+  setTimeout(() => { document.getElementById('msg').textContent = ''; }, 1500);
+};
+</script>
+</body>
+</html>

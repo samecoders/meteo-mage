@@ -51,7 +51,7 @@
   "rank.noNick": "Sıralamaya katılmak için Ayarlar'dan bir isim belirle",
   "rank.rejected": "Skor kabul edilmedi",
   "rank.offline": "Çevrimdışı — bu cihazdaki rekorlar",
-  "rank.local": "Sıralama sunucusu ayarlanmadı — cihaz rekorları",
+  "rank.local": "Sıralama bağlı değil — bu cihazdaki en iyi skorun",
   "rank.today": "Bugün",
   "rank.week": "Bu hafta",
   "rank.all": "Tüm zamanlar",
@@ -145,5 +145,10 @@
   "ring.warn": "Kuşatma geliyor! Boşluğu bul",
   "settings.music": "Müzik",
   "settings.sfx": "Ses efektleri",
-  "settings.hint": "Kaçış oku"
+  "settings.hint": "Kaçış oku",
+  "rank.weekRank": "Bu hafta: {rank}. sıra",
+  "rank.impossible": "Bu skor kabul edilmedi, gönderilmedi",
+  "rank.badNick": "Ayarlar'dan adını değiştir. Bu ad kullanılamaz",
+  "rank.queued": "Çevrimdışı — bağlanınca sonraki açılışta gönderilecek",
+  "rank.noCountry": "Ayarlar'dan ülkeni seç"
 }

@@ -51,7 +51,7 @@
   "rank.noNick": "Lege in den Einstellungen einen Namen fest, um in die Rangliste zu kommen",
   "rank.rejected": "Punktzahl wurde nicht akzeptiert",
   "rank.offline": "Offline — Rekorde dieses Geräts",
-  "rank.local": "Ranglisten-Server nicht eingerichtet — Geräterekorde",
+  "rank.local": "Rangliste nicht erreichbar — deine Bestleistung auf diesem Gerät",
   "rank.today": "Heute",
   "rank.week": "Diese Woche",
   "rank.all": "Gesamt",
@@ -145,5 +145,10 @@
   "ring.warn": "Einkesselung naht! Finde die Lücke",
   "settings.music": "Musik",
   "settings.sfx": "Soundeffekte",
-  "settings.hint": "Fluchtpfeil"
+  "settings.hint": "Fluchtpfeil",
+  "rank.weekRank": "Diese Woche: Platz {rank}",
+  "rank.impossible": "Dieses Ergebnis wurde nicht akzeptiert und nicht gespeichert",
+  "rank.badNick": "Ändere deinen Namen in den Einstellungen. Dieser Name ist nicht erlaubt",
+  "rank.queued": "Offline — wird beim nächsten Start mit Verbindung gesendet",
+  "rank.noCountry": "Wähle dein Land in den Einstellungen"
 }

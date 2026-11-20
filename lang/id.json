@@ -51,7 +51,7 @@
   "rank.noNick": "Atur nama di Pengaturan untuk ikut peringkat",
   "rank.rejected": "Skor tidak diterima",
   "rank.offline": "Offline — rekor di perangkat ini",
-  "rank.local": "Server peringkat belum diatur — rekor perangkat",
+  "rank.local": "Peringkat tidak terhubung — rekor terbaikmu di perangkat ini",
   "rank.today": "Hari ini",
   "rank.week": "Minggu ini",
   "rank.all": "Sepanjang masa",
@@ -145,5 +145,10 @@
   "ring.warn": "Kepungan datang! Cari celahnya",
   "settings.music": "Musik",
   "settings.sfx": "Efek suara",
-  "settings.hint": "Panah kabur"
+  "settings.hint": "Panah kabur",
+  "rank.weekRank": "Minggu ini: peringkat {rank}",
+  "rank.impossible": "Skor ini tidak diterima sehingga tidak dikirim",
+  "rank.badNick": "Ganti namamu di Pengaturan. Nama ini tidak boleh dipakai",
+  "rank.queued": "Offline — akan dikirim saat peluncuran berikutnya jika terhubung",
+  "rank.noCountry": "Pilih negaramu di Pengaturan"
 }

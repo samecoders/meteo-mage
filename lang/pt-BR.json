@@ -51,7 +51,7 @@
   "rank.noNick": "Defina um nome nas Configurações para entrar no ranking",
   "rank.rejected": "A pontuação não foi aceita",
   "rank.offline": "Offline — recordes deste aparelho",
-  "rank.local": "Servidor de ranking não configurado — recordes do aparelho",
+  "rank.local": "Ranking indisponível — seu melhor neste aparelho",
   "rank.today": "Hoje",
   "rank.week": "Esta semana",
   "rank.all": "Geral",
@@ -145,5 +145,10 @@
   "ring.warn": "Cerco chegando! Ache a brecha",
   "settings.music": "Música",
   "settings.sfx": "Efeitos sonoros",
-  "settings.hint": "Seta de fuga"
+  "settings.hint": "Seta de fuga",
+  "rank.weekRank": "Esta semana: {rank}º",
+  "rank.impossible": "Esta pontuação não foi aceita e não foi publicada",
+  "rank.badNick": "Mude seu nome em Configurações. Este nome não pode ser usado",
+  "rank.queued": "Offline — será enviado na próxima abertura com conexão",
+  "rank.noCountry": "Escolha seu país em Configurações"
 }
