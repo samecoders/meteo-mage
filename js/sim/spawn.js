@@ -66,7 +66,12 @@ export function updateSpawner(G, dt, spawnR) {
     while (budget > 0) {
       const size = Math.min(budget, Math.max(1, Math.round(baseGroup * (0.7 + rng() * 0.6))));
       const ang = rng() < S.randomGroupChance ? rng() * Math.PI * 2 : spawner.fronts[(rng() * S.fronts) | 0] + (rng() - 0.5) * 0.5;
-      const dist = spawnR * (1 + rng() * 0.12);
+      let dist = spawnR * (1 + rng() * 0.12);
+      if (G.time < S.openingTime) {   // 시작 직후: 화면 가장자리 바로 밖(3초 안에 보이게)
+        const hw = G.zoomShort, hh = hw * S.openingAspect;   // 화면 반폭·반높이(월드) — 9:16 가정
+        const c = Math.abs(Math.cos(ang)) || 1e-6, sn = Math.abs(Math.sin(ang)) || 1e-6;
+        dist = Math.min(dist, Math.min(hw / c, hh / sn) + S.openingMargin);
+      }
       const cx = G.player.x + Math.cos(ang) * dist, cy = G.player.y + Math.sin(ang) * dist;
       const spread = 10 + Math.sqrt(size) * 11;
       const type = pickType(w, rng());      // 한 무리는 대체로 같은 종류

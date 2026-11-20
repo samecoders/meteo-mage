@@ -6,9 +6,11 @@ import { M, B } from '../sim/mobs.js';
 import { O } from '../orbs.js';
 import { meteors, fires } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
-import { items, fireballs } from '../items.js';
+import { items, fireballs, KINDS, RARITY, ITEM_CHEST } from '../items.js';
+import { BT } from '../bolts.js';
+import { playerSpeed } from '../player.js';
 import { pal } from '../skins.js';
-import { fillCraters, fillCorpses, fillAfterimages, fillParticles, fillRings, fillSpriteFx, addParticle, particleRoom, getQualityLevel } from './effects.js';
+import { fillCraters, fillCorpses, fillAfterimages, fillParticles, fillRings, fillSpriteFx, fillStrikes, addParticle, addAfterimage, particleRoom, getQualityLevel } from './effects.js';
 
 export const batches = {
   mobs: null,
@@ -16,14 +18,18 @@ export const batches = {
   top: new SpriteBatch(4096),
   under: new ShapeBatch(2048),
   parts: new ShapeBatch(4600),
-  over: new ShapeBatch(512),
+  over: new ShapeBatch(6000),
 };
 export function allocBatches(cap) { batches.mobs = new SpriteBatch(cap); }
 
 const RED = pal(22), DARK = pal(1), WHITE = pal(31), CYAN = pal(12), BLUE = pal(11), ORANGE = pal(23), YELLOW = pal(24), INK = pal(28);
 const GHOST_FLAG = new Uint8Array(CONFIG.mobs.types.map((t) => (t.ghost ? 16 : 0)));
 const BOSS_SPR = CONFIG.boss.kinds.map((k) => SPR[k.sprite]);
-const ITEM_SPR = [SPR.item_potion, SPR.item_magnet, SPR.item_chest];
+const ITEM_SPR = KINDS.map((k) => SPR['item_' + k]);
+// 등급 빛: 일반 흰 빛, 희귀 파랑 빛, 전설 금빛 기둥, 보물상자 금빛
+const RARITY_GLOW = { common: pal(31), rare: pal(11), legend: pal(24), boss: pal(24) };
+const ITEM_GLOW = RARITY.map((r) => RARITY_GLOW[r]);
+const RAINBOW = [22, 23, 24, 6, 12, 11, 21].map(pal);
 const DECOR_SPR = CONFIG.decor.kinds.map((k) => SPR[k]);
 export const HERO_SPR = { mage: SPR.mage, apprentice: SPR.hero_apprentice, pyromancer: SPR.hero_pyromancer, icewitch: SPR.hero_icewitch, necromancer: SPR.hero_necromancer };
 
@@ -90,11 +96,16 @@ export function fillTop(V, alpha, G, time) {
   const b = batches.top;
   b.reset();
   fillCorpses(b, V);
+  const blinkLast = CONFIG.items.blinkLast;
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     if (!it.active) continue;
-    if (it.life < 5 && ((time * 8) | 0) % 2) continue;
-    b.push(it.x * 0.5 - V.left, it.y * 0.5 - V.top - (((time * 2) % 1) < 0.5 ? 1 : 0), ITEM_SPR[it.kind], 0, 0, 1, 0);
+    if (it.fly <= 0 && it.life < blinkLast && ((time * (it.life < 2 ? 12 : 6)) | 0) % 2) continue;
+    let x = it.x, y = it.y, hop = 0;
+    if (it.fly > 0) { const f = 1 - it.fly / 0.35; x = it.sx + (it.x - it.sx) * f; y = it.sy + (it.y - it.sy) * f; hop = Math.sin(f * Math.PI) * 18; }
+    // 살짝 떠서 위아래로
+    const bob = it.kind === ITEM_CHEST ? 0 : 3 + (((time * 2.2 + i * 0.3) % 1) < 0.5 ? 1 : 0);
+    b.push(x * 0.5 - V.left, y * 0.5 - V.top - bob - hop, ITEM_SPR[it.kind], 0, 0, 1, 0);
   }
   for (let i = 0; i < B.length; i++) {
     const o = B[i];
@@ -114,8 +125,11 @@ export function fillTop(V, alpha, G, time) {
   fillAfterimages(b, V, hero);
   const p = G.player;
   if (p.alive) {
-    const blink = p.invuln > 0 && ((time * 12) | 0) % 2 === 0;
-    if (!blink) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, hero, p.flip | ((Math.abs(p.vx) + Math.abs(p.vy) > 20) ? 4 : 0), 0, 1, 0);
+    const star = G.starT > 0;
+    const blink = !star && p.invuln > 0 && ((time * 12) | 0) % 2 === 0;
+    // 무적의 별: 번쩍임, 끝나기 2초 전부터 깜빡
+    const starFlash = star && (G.starT < CONFIG.items.starBlink ? ((time * 10) | 0) % 2 : ((time * 6) | 0) % 3 === 0);
+    if (!blink) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, hero, p.flip | ((Math.abs(p.vx) + Math.abs(p.vy) > 20) ? 4 : 0) | (starFlash ? 2 : 0), 0, 1, 0);
   }
   fillSpriteFx(b, V, p.x, p.y);
   const spr = SPR[G.skin.sprite];
@@ -140,6 +154,17 @@ export function fillUnder(V, G, time, dashPrev) {
     const d = Math.min(1, z.t / 1.0);
     b.push(sx, sy, z.r * 0.5, 0, pal(3), 0, (90 * d) | 0, 0, 0);
     b.push(sx, sy, z.r * 0.5, 2, ORANGE, 2, (220 * d) | 0, 18, ((time * 60) | 0) & 255);
+  }
+  // 아이템 바닥 빛(등급 색으로 반짝)
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.active || it.fly > 0) continue;
+    const sx = it.x * 0.5 - V.left, sy = it.y * 0.5 - V.top;
+    if (sx < -30 || sy < -60 || sx > V.iw + 30 || sy > V.ih + 30) continue;
+    const pulse = ((time * 3 + i * 0.37) % 1) < 0.5;
+    const col = ITEM_GLOW[it.kind], big = it.kind === ITEM_CHEST ? 1.3 : 1;
+    b.push(sx, sy + 2, (pulse ? 9 : 8) * big, 0, col, 0, 70, 0, 0);
+    b.push(sx, sy + 2, (pulse ? 11 : 10) * big, 1, col, 2, 200, 8, ((time * 30) | 0) & 255);
   }
   const R = G.meteorRadius * 0.5;
   for (let i = 0; i < meteors.length; i++) {
@@ -171,18 +196,38 @@ export function fillOver(V, G, time, alpha) {
   const b = batches.over;
   b.reset();
   fillRings(b, V);
+  fillStrikes(b, V, WHITE, YELLOW);
+  // 전설 아이템: 금빛 기둥
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.active || it.fly > 0 || RARITY[it.kind] !== 'legend') continue;
+    const sx = it.x * 0.5 - V.left, sy = it.y * 0.5 - V.top;
+    if (sx < -10 || sx > V.iw + 10 || sy < -10 || sy > V.ih + 80) continue;
+    b.push(sx, sy - 34, 2 + (((time * 4) | 0) % 2), 32, YELLOW, 4, 110, 0, 0);
+    b.push(sx, sy - 34, 1, 32, WHITE, 4, 160, 0, 0);
+  }
+  // 마법탄: 밝은 머리 + 꼬리
+  for (let i = 0; i < BT.n; i++) {
+    const sx = BT.x[i] * 0.5 - V.left, sy = BT.y[i] * 0.5 - V.top;
+    if (sx < -4 || sy < -4 || sx > V.iw + 4 || sy > V.ih + 4) continue;
+    const tx = (BT.x[i] - BT.vx[i] * 0.025) * 0.5 - V.left, ty = (BT.y[i] - BT.vy[i] * 0.025) * 0.5 - V.top;
+    b.push(tx, ty, 1, 0, BLUE, 3, 255, 0, 0);
+    b.push((sx + tx) / 2, (sy + ty) / 2, 1, 0, CYAN, 3, 255, 0, 0);
+    b.push(sx, sy, 1.5, 0, WHITE, 3, 255, 0, 0);
+  }
   const p = G.player;
   if (p.alive && p.shield) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, 19, 1, CYAN, 2, 200, 10, ((time * 50) | 0) & 255);
-  // 무리 속에서도 법사가 보이게: 발밑 표시 고리(그림만) + 체력이 깎였으면 머리 위 체력 막대
+  // 무적의 별: 무지개빛 고리
+  if (p.alive && G.starT > 0 && !(G.starT < CONFIG.items.starBlink && ((time * 10) | 0) % 2)) {
+    const sx = p.x * 0.5 - V.left, sy = p.y * 0.5 - V.top, k = (time * 14) | 0;
+    b.push(sx, sy, 15, 2, RAINBOW[k % RAINBOW.length], 1, 255, 0, 0);
+    b.push(sx, sy, 19, 1, RAINBOW[(k + 3) % RAINBOW.length], 2, 220, 12, (k * 9) & 255);
+  }
+  // 무리 속에서도 법사가 보이게: 발밑 표시 고리(그림만)
   if (p.alive) {
     const pulse = ((time * 4) | 0) % 2;
     const sx = p.x * 0.5 - V.left, sy = p.y * 0.5 - V.top;
     b.push(sx, sy + 12, 9 + pulse, 1, YELLOW, 1, 255, 0, 0);
-    if (p.hp < p.maxHp) {
-      const w = 12, f = Math.max(0, p.hp / p.maxHp);
-      b.push(sx, sy - 22, w + 1, 2, INK, 4, 255, 0, 0);
-      b.push(sx - w + w * f, sy - 22, w * f, 1, f < 0.3 ? RED : pal(7), 4, 255, 0, 0);
-    }
   }
   for (let i = 0; i < B.length; i++) {
     const o = B[i];
@@ -199,6 +244,25 @@ export function fillOver(V, G, time, alpha) {
 export function emitVisuals(G, dt) {
   if (dt <= 0) return;
   const sk = G.skin;
+  // 빠르게 움직일 때: 짧은 픽셀 잔상 + 속도선 / 무적의 별: 무지개 반짝이
+  const p = G.player;
+  if (p.alive && p.dashT <= 0) {
+    const v = Math.hypot(p.vx, p.vy), top = playerSpeed(G);
+    if (v > top * CONFIG.player.fastTrail) {
+      p.trailT -= dt;
+      if (p.trailT <= 0) { p.trailT = 0.07; addAfterimage(p.x - p.vx * 0.02, p.y - p.vy * 0.02, p.flip, 0.14); }
+      const ux = p.vx / v, uy = p.vy / v, n = Math.min(particleRoom(), 2);
+      for (let k = 0; k < n; k++) {
+        const side = (Math.random() - 0.5) * 30;
+        addParticle(p.x - ux * (14 + Math.random() * 10) - uy * side, p.y - uy * (14 + Math.random() * 10) + ux * side - 4,
+          -ux * 260, -uy * 260, 0.08 + Math.random() * 0.05, k ? WHITE : pal(14), 2, 0);
+      }
+    }
+    if (G.starT > 0 && particleRoom() > 0) {
+      const a = Math.random() * Math.PI * 2;
+      addParticle(p.x + Math.cos(a) * 14, p.y + Math.sin(a) * 14 - 6, Math.cos(a) * 30, -40, 0.4, RAINBOW[(Math.random() * RAINBOW.length) | 0], 2, 0);
+    }
+  }
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active || m.t < 0) continue;

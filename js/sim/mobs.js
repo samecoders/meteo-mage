@@ -23,6 +23,8 @@ export const M = {
   hp: null,
   type: null, phase: null, flash: null, dead: null,
   cell: null,             // 격자 칸 번호(격자 만들 때 채움)
+  hpMul: 1,               // 새로 생기는 몹 체력 배율(초반 완화) — 틱에서 game.js 가 정함
+  speedMul: 1,            // 모든 몹 속도 배율(초반 완화 × 시간의 모래시계)
 };
 
 export function allocMobs(cap) {
@@ -64,7 +66,7 @@ export function addMob(x, y, t, phase) {
   const i = M.n++;
   M.x[i] = x; M.y[i] = y; M.px[i] = x; M.py[i] = y;
   M.vx[i] = 0; M.vy[i] = 0;
-  M.hp[i] = MAXHP[t];
+  M.hp[i] = MAXHP[t] * M.hpMul;
   M.type[i] = t; M.phase[i] = phase; M.flash[i] = 0; M.dead[i] = 0;
   return i;
 }
@@ -97,7 +99,7 @@ export function compactMobs(onDead) {
  */
 export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
   const n = M.n, X = M.x, Y = M.y, VX = M.vx, VY = M.vy, TY = M.type, FL = M.flash, PH = M.phase;
-  const cfg = CONFIG.mobs;
+  const cfg = CONFIG.mobs, smul = M.speedMul;
   // 압력은 짝/홀 몹을 번갈아 2배 세기로 계산(관성으로 부드러워짐) → 비용 절반
   const accel = cfg.accel, pk = cfg.pressureK * 2, pcap = cfg.pressureCap * 2, far = cfg.farSkip;
   const desp = spawnR * cfg.despawnFactor, desp2 = desp * desp;
@@ -116,7 +118,7 @@ export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
       X[i] = nx; Y[i] = ny; M.px[i] = nx; M.py[i] = ny; VX[i] = 0; VY[i] = 0;
       continue;
     }
-    const t = TY[i], s = SPEED[t];
+    const t = TY[i], s = SPEED[t] * smul;
     const k = s / (Math.sqrt(d2) + 0.001);
     let tx = dx * k, ty = dy * k;
     if (WOBBLE[t]) { // 박쥐: 좌우로 흔들며 날기
@@ -179,7 +181,7 @@ export function moveBosses(G, dt, hooks) {
     b.px = b.x; b.py = b.y;
     if (b.flash) b.flash--;
     const dx = p.x - b.x, dy = p.y - b.y, d = Math.sqrt(dx * dx + dy * dy) + 0.001;
-    let s = K.speed, ax = dx / d, ay = dy / d, lerp = 0.1;
+    let s = K.speed * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1), ax = dx / d, ay = dy / d, lerp = 0.1;
     b.t += dt;
     if (K.key === 'ogre') {
       if (b.state === 0 && b.t >= K.every && d < 900) { b.state = 1; b.st = K.windup; }

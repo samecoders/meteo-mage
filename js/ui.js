@@ -1,5 +1,5 @@
 // HTML/CSS 오버레이 UI. 모든 문구는 i18n 키로만. HUD 숫자는 초당 10번만 갱신.
-import { CONFIG } from './config.js';
+import { CONFIG, HUD_BOTTOM_FORBIDDEN } from './config.js';
 import { save } from './save.js';
 import { t, fmt, fmtCompact, getLanguages, getLang, setLanguage, onLangChange, fitAll } from './i18n.js';
 import { SKINS, skinPrice, skinById, palCss } from './skins.js';
@@ -8,6 +8,8 @@ import { fetchTop, rankingEnabled } from './ranking.js';
 import { sfx, previewExplosion, unlockAudio } from './audio.js';
 import { M, B } from './sim/mobs.js';
 import { expNeed } from './upgrade.js';
+import { items as fieldItems, KINDS, RARITY } from './items.js';
+import { dashCooldown } from './dash.js';
 
 const $ = (id) => document.getElementById(id);
 let H = null;
@@ -86,8 +88,48 @@ export function screenName() { return current; }
 
 export function showHud(on) {
   $('hud').classList.toggle('hidden', !on);
-  if (on) { lastHud = {}; requestAnimationFrame(() => fitAll($('hud'))); }
+  if (on) { lastHud = {}; heartsKey = ''; effKey = ''; requestAnimationFrame(() => { fitAll($('hud')); checkHudLayout(); }); }
+  else hideLearn();
 }
+
+// ------------------------------------------------------------ 배치 검사: 아래쪽 40% 에는 메테오와 대시 버튼만
+/**
+ * HUD 안의 보이는 요소 중 화면 아래쪽 HUD_BOTTOM_FORBIDDEN(40%) 에 걸치는 것이 있으면 경고(디버그면 분홍 테두리).
+ * 허용: CONFIG.ui.bottomAllowed. 화면 전체를 덮는 겹 레이어(팝업·화살표 컨테이너)는 검사 대상이 아님.
+ * 버튼은 최소 48×48 CSS 픽셀인지도 본다. 반환: 문제 목록
+ */
+export function checkHudLayout() {
+  const hud = $('hud');
+  if (!hud || hud.classList.contains('hidden')) return [];
+  const H0 = window.innerHeight, W0 = window.innerWidth, limit = H0 * (1 - HUD_BOTTOM_FORBIDDEN);
+  const allowed = new Set(CONFIG.ui.bottomAllowed);
+  const bad = [];
+  for (const el of hud.querySelectorAll('*')) {
+    if (el.closest('#hudBottom') || el.closest('#bossArrows') || el.closest('#popups')) continue;
+    el.classList.remove('layoutBad');
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || el.offsetParent === null) continue;
+    if (r.height > H0 * 0.9 && r.width > W0 * 0.9) continue;      // 겹 레이어
+    if (allowed.has(el.id)) continue;
+    if (r.bottom > limit + 1) bad.push({ el: el.id || el.className || el.tagName, why: 'bottom' });
+    if (el.tagName === 'BUTTON' && !el.closest('#dbgItems') && (r.width < CONFIG.ui.minButton - 0.5 || r.height < CONFIG.ui.minButton - 0.5)) bad.push({ el: el.id || el.tagName, why: 'small' });
+  }
+  // 허용된 두 요소는 아래쪽에 있어야 함(위치 변화 확인용)
+  for (const id of ['mana', 'btnDash']) { const r = $(id).getBoundingClientRect(); if (r.height && r.top < limit - 1) bad.push({ el: id, why: 'moved' }); }
+  if (bad.length) {
+    console.warn('HUD 배치 규칙 위반(아래쪽 ' + Math.round(HUD_BOTTOM_FORBIDDEN * 100) + '%):', bad);
+    if (H && H.debug) for (const b of bad) { const e = document.getElementById(b.el); if (e) e.classList.add('layoutBad'); }
+  }
+  if (H && H.debug) {
+    let z = $('forbidZone');
+    if (!z) { z = document.createElement('div'); z.id = 'forbidZone'; document.body.appendChild(z); }
+    z.style.height = (HUD_BOTTOM_FORBIDDEN * 100) + '%';
+  }
+  return bad;
+}
+/** 알림 y 좌표(CSS px)가 위 1/3 안인지 */
+function inNotifyZone(y) { return y <= window.innerHeight * CONFIG.ui.notifyMaxY; }
+
 
 export function fatal(msg) {
   const f = $('fatal');
@@ -142,7 +184,10 @@ export function initUI(h) {
   for (const b of document.querySelectorAll('#rankTabs button')) b.addEventListener('click', () => { sfx.click(); openRank(b.dataset.scope); });
   for (const b of document.querySelectorAll('#shopTabs button')) b.addEventListener('click', () => { sfx.click(); shopTab = b.dataset.tab; previewSkin = null; openShop(); });
   const arrows = $('bossArrows');
-  for (let i = 0; i < CONFIG.boss.max; i++) { const a = document.createElement('div'); a.className = 'barrow hidden'; a.innerHTML = '<i></i><img alt="">'; arrows.appendChild(a); arrowPool.push(a); }
+  for (let i = 0; i < CONFIG.boss.max + CONFIG.items.max; i++) { const a = document.createElement('div'); a.className = 'barrow hidden'; a.innerHTML = '<i></i><img alt="">'; arrows.appendChild(a); arrowPool.push(a); }
+  for (const k of KINDS) itemIcons[k] = UIIMG['item_' + k] || (h.assets.sprites['item_' + k] && h.assets.sprites['item_' + k].toDataURL());
+  if (h.debug) setupDebugItems();
+  window.addEventListener('resize', () => setTimeout(checkHudLayout, 100));
 
   // 설정
   $('stLang').addEventListener('change', async (e) => {
@@ -151,6 +196,7 @@ export function initUI(h) {
   });
   click('stSound', () => { save.data.settings.sound = !save.data.settings.sound; save.write(); H.onSound(save.data.settings.sound); refreshSettings(); });
   click('stVib', () => { save.data.settings.vibrate = !save.data.settings.vibrate; save.write(); refreshSettings(); });
+  click('stFlick', () => { save.data.settings.flickDash = !save.data.settings.flickDash; save.write(); refreshSettings(); });
   $('stQuality').addEventListener('change', (e) => { save.data.settings.quality = e.target.value; save.write(); H.onQuality(); });
   $('nName').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitNick(); });
 
@@ -184,30 +230,41 @@ function applyUiSkin() {
   setIco('icoKills', UIIMG.ui_skull);
   setIco('icoTime', UIIMG.ui_clock);
   setIco('icoHeart', UIIMG.ui_heart);
-  if (UIIMG.icon_shield) { $('icoShield').classList.add('hidden'); setIco('imgShield', UIIMG.icon_shield); }
-  if (UIIMG.icon_speed) { $('icoDash').classList.add('hidden'); setIco('imgDash', UIIMG.icon_speed); }
+  const shieldImg = UIIMG.ui_shield || UIIMG.icon_shield, dashUpImg = UIIMG.ui_dashup || UIIMG.icon_speed;
+  if (shieldImg) { $('icoShield').classList.add('hidden'); setIco('imgShield', shieldImg); }
+  if (dashUpImg) { $('icoDash').classList.add('hidden'); setIco('imgDash', dashUpImg); }
+  if (UIIMG.ui_dash) { const im = new Image(); im.onload = () => { dashImg = im; dashLast = -1; }; im.src = UIIMG.ui_dash; }
 }
 
 // ------------------------------------------------------------ 화면 밖 보스 방향 화살표
 const arrowPool = [];
+const itemIcons = {};
+/** 화면 밖 보스·아이템 방향 화살표. 화살표가 아래쪽 40% 에 들어가면 아이콘 없이 작은 점만 */
 export function updateBossArrows(G, V) {
   let k = 0;
-  const margin = 34, W = V.cssW, Hh = V.cssH;
-  for (let i = 0; i < B.length; i++) {
-    const b = B[i];
-    if (!b.active) continue;
+  const margin = 34, W = V.cssW, Hh = V.cssH, limit = Hh * (1 - HUD_BOTTOM_FORBIDDEN);
+  const place = (x, y, cls, icon, iconKey) => {
     const a = arrowPool[k++];
-    if (!a) break;
-    const sx = (b.x * 0.5 - V.left) / V.iw * W, sy = (b.y * 0.5 - V.top) / V.ih * Hh;
-    if (sx > 0 && sy > 0 && sx < W && sy < Hh) { a.classList.add('hidden'); continue; }
+    if (!a) return;
+    const sx = (x * 0.5 - V.left) / V.iw * W, sy = (y * 0.5 - V.top) / V.ih * Hh;
+    if (sx > 0 && sy > 0 && sx < W && sy < Hh) { a.classList.add('hidden'); return; }
     const cx = W / 2, cy = Hh / 2, dx = sx - cx, dy = sy - cy;
     const sc = Math.min((W / 2 - margin) / Math.abs(dx || 1e-3), (Hh / 2 - margin) / Math.abs(dy || 1e-3));
-    a.classList.remove('hidden');
-    a.style.transform = `translate(${(cx + dx * sc - 20) | 0}px, ${(cy + dy * sc - 20) | 0}px)`;
+    const ay = cy + dy * sc;
+    const c = 'barrow ' + cls + (ay > limit ? ' dot' : '');
+    if (a._c !== c) { a._c = c; a.className = c; }
+    a.style.transform = `translate(${(cx + dx * sc - 20) | 0}px, ${(ay - 20) | 0}px)`;
     a.firstChild.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-    if (a.lastChild._k !== b.kind) { a.lastChild._k = b.kind; a.lastChild.src = bossIcon(b.kind); }
+    if (a.lastChild._k !== iconKey) { a.lastChild._k = iconKey; a.lastChild.src = icon(); }
+  };
+  for (let i = 0; i < B.length; i++) { const b = B[i]; if (b.active) place(b.x, b.y, 'boss', () => bossIcon(b.kind), 'b' + b.kind); }
+  for (let i = 0; i < fieldItems.length; i++) {
+    const it = fieldItems[i];
+    if (!it.active) continue;
+    const key = KINDS[it.kind];
+    place(it.x, it.y, 'item ' + RARITY[it.kind], () => itemIcons[key] || '', 'i' + key);
   }
-  for (; k < arrowPool.length; k++) arrowPool[k].classList.add('hidden');
+  for (; k < arrowPool.length; k++) if (!arrowPool[k].classList.contains('hidden')) arrowPool[k].classList.add('hidden');
 }
 const bossIconCache = {};
 function bossIcon(kind) {
@@ -219,7 +276,7 @@ function bossIcon(kind) {
 export function refreshTitle() {
   $('titleBank').textContent = fmt(save.data.bank);
   const b = save.data.best;
-  $('titleBest').textContent = b ? `${t('best')}: ${fmt(b.kills)}` : '';
+  $('titleBest').textContent = b && b.season === CONFIG.ranking.season ? `${t('best')}: ${fmt(b.kills)}` : '';
 }
 
 // ------------------------------------------------------------ HUD
@@ -242,11 +299,11 @@ export function updateHud(G, now, input) {
   const pct = Math.min(100, (s.exp / s.expNeed) * 100).toFixed(1) + '%';
   if (lastHud.exp !== pct) { lastHud.exp = pct; $('hudExp').style.width = pct; }
   setText('hudGoldN', fmt(s.gold));
-  const p = G.player, hpPct = Math.max(0, p.hp / p.maxHp);
-  const hw = (hpPct * 100).toFixed(1) + '%';
-  if (lastHud.hp !== hw) { lastHud.hp = hw; $('hudHpBar').style.width = hw; }
-  setText('hudHpN', String(Math.ceil(p.hp)));
-  toggle('hudHp', 'low', hpPct < 0.3);
+  const p = G.player;
+  drawHearts(p);
+  updateEffects(G);
+  updateChain(G);
+  toggle('mana', 'locked', !G.meteorLearned);
   const sp = G.player.shield ? '✔' : fmt(shieldPrice(G));
   setText('shieldPrice', sp);
   const dmax = G.player.dashLevel >= CONFIG.dash.maxUpgrades;
@@ -257,6 +314,78 @@ export function updateHud(G, now, input) {
   toggle('btnDashUp', 'off', !canBuyDash(G));
 }
 function toggle(id, cls, on) { const k = id + cls; if (lastHud[k] !== on) { lastHud[k] = on; $(id).classList.toggle(cls, on); } }
+
+// ------------------------------------------------------------ 하트(코드로 그린 픽셀)
+const HEART = ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
+let heartsKey = '';
+function heartCanvas(full, healing) {
+  const c = document.createElement('canvas'); c.width = 9; c.height = 8;
+  const x = pctx(c);
+  for (let y = 0; y < HEART.length; y++) for (let i = 0; i < 7; i++) {
+    if (HEART[y][i] !== '#') continue;
+    x.fillStyle = full ? (y === 1 && i === 1 ? P(31) : y > 3 ? P(3) : P(22)) : P(16);
+    x.fillRect(i + 1, y + 1, 1, 1);
+  }
+  for (let y = 0; y < 8; y++) for (let i = 0; i < 9; i++) {   // 외곽선
+    if (x.getImageData(i, y, 1, 1).data[3]) continue;
+    const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const xx = i + dx, yy = y + dy; return xx >= 1 && yy >= 1 && xx <= 7 && yy <= 6 && HEART[yy - 1][xx - 1] === '#'; });
+    if (n) { x.fillStyle = P(1); x.fillRect(i, y, 1, 1); }
+  }
+  if (healing) c.className = 'pop';
+  return c;
+}
+let lastHp = -1;
+function drawHearts(p) {
+  const hp = Math.max(0, Math.ceil(p.hp)), key = hp + '/' + p.maxHp;
+  if (key === heartsKey) return;
+  const gained = lastHp >= 0 && hp > lastHp;
+  heartsKey = key; lastHp = hp;
+  const box = $('hearts');
+  box.innerHTML = '';
+  for (let i = 0; i < p.maxHp; i++) box.appendChild(heartCanvas(i < hp, gained && i === hp - 1));
+}
+
+// ------------------------------------------------------------ 켜진 아이템 효과(남은 시간 원형 표시)
+const EFFECTS = [
+  { key: 'star', t: (G) => G.starT, max: () => CONFIG.items.starTime, blink: CONFIG.items.starBlink },
+  { key: 'hourglass', t: (G) => G.slowT, max: () => CONFIG.items.hourglassTime },
+  { key: 'twin', t: (G) => G.twinT, max: () => CONFIG.items.twinTime },
+  { key: 'fury', t: (G) => G.furyT, max: () => CONFIG.items.furyTime },
+  { key: 'magnet', t: (G) => Math.max(0, G.magnetAll), max: () => CONFIG.items.magnetTime },
+];
+const effMax = {};
+let effKey = '';
+function updateEffects(G) {
+  const on = [];
+  for (const e of EFFECTS) { const v = e.t(G); if (v > 0) on.push(e); else effMax[e.key] = 0; }
+  const key = on.map((e) => e.key).join(',');
+  const box = $('effects');
+  if (key !== effKey) {
+    effKey = key;
+    box.innerHTML = '';
+    for (const e of on) { const d = document.createElement('div'); d.className = 'eff'; d.dataset.k = e.key; d.innerHTML = `<img alt="" src="${itemIcons[e.key] || ''}">`; box.appendChild(d); }
+  }
+  for (const d of box.children) {
+    const e = EFFECTS.find((x) => x.key === d.dataset.k), v = e.t(G);
+    effMax[e.key] = Math.max(effMax[e.key] || 0, v, e.max());     // 연장되면 원이 다시 가득
+    d.style.setProperty('--p', (v / effMax[e.key]).toFixed(3));
+    d.classList.toggle('blink', !!e.blink && v < e.blink);
+  }
+}
+
+// ------------------------------------------------------------ 연속 킬 콤보(2초 안에 이어지면 유지)
+let chainShown = 0;
+function updateChain(G) {
+  const el = $('chain');
+  const live = G.chainN >= 2 && G.time - G.chainLast <= CONFIG.progress.chainTime;
+  if (!live) { if (chainShown) { el.className = ''; chainShown = 0; } return; }
+  if (G.chainN !== chainShown) {
+    chainShown = G.chainN;
+    el.textContent = t('chain', { n: fmt(G.chainN) });
+    el.className = 'on' + (G.chainN >= 500 ? ' fire' : G.chainN >= 50 ? ' hot' : '');
+    void el.offsetWidth; el.classList.add('bump');
+  }
+}
 
 let manaLast = -1, manaFullT = 0;
 function drawMana(G, now) {
@@ -285,10 +414,10 @@ function drawMana(G, now) {
   for (let k = 0; k < 5; k++) dot(c, cx + 3 + k, cy - 3 - k, full ? P(23) : P(15));
 }
 
-let dashLast = -1, dashFlashT = 0;
+let dashLast = -1, dashFlashT = 0, dashImg = null;
 function drawDash(G, now, input) {
   const p = G.player;
-  const frac = p.dashCharges >= p.dashMax ? 1 : p.dashCd / CONFIG.dash.cooldown;
+  const frac = p.dashCharges >= p.dashMax ? 1 : p.dashCd / dashCooldown(p);
   const ready = p.dashCharges >= 1;
   const flash = now < dashFlashT ? ((now / 70) | 0) % 2 : 0;
   const key = Math.round(frac * 100) + (ready ? 1000 : 0) + flash * 2000 + p.dashCharges * 4000 + (input.dashHeld ? 20000 : 0);
@@ -305,9 +434,10 @@ function drawDash(G, now, input) {
     c.fillRect(x, y, 1, 1);
   }
   disc(c, cx, cy, 9.5, ready ? (input.dashHeld ? P(23) : P(4)) : P(29));
-  // >> 화살표
+  // 가운데 그림: ui_dash.png 가 있으면 그것, 없으면 >> 화살표
   const col = ready ? P(31) : P(30);
-  for (let k = 0; k < 4; k++) { dot(c, 8 + k, 10 + k, col); dot(c, 8 + k, 17 - k, col); dot(c, 13 + k, 10 + k, col); dot(c, 13 + k, 17 - k, col); }
+  if (dashImg) { c.globalAlpha = ready ? 1 : 0.45; c.drawImage(dashImg, 6, 6, 16, 16); c.globalAlpha = 1; }
+  else for (let k = 0; k < 4; k++) { dot(c, 8 + k, 10 + k, col); dot(c, 8 + k, 17 - k, col); dot(c, 13 + k, 10 + k, col); dot(c, 13 + k, 17 - k, col); }
   if (p.dashMax > 1) for (let k = 0; k < p.dashMax; k++) disc(c, 11 + k * 6, 24, 1.5, k < p.dashCharges ? P(24) : P(29));
 }
 
@@ -369,23 +499,28 @@ export function comboPopup(kills, mult) {
 const popPool = [];
 let popIdx = 0;
 export function killPopup(x, y, kills) {
+  if (y > window.innerHeight * (1 - HUD_BOTTOM_FORBIDDEN)) return;   // 아래쪽 40% 에는 띄우지 않음
   const d = popPool[popIdx++ % popPool.length];
   d.textContent = '+' + fmtCompact(kills);
   d.style.left = x + 'px'; d.style.top = y + 'px';
   d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
 }
 let toastT = 0;
-export function toast(text, kind) {
-  const el = $('toast');
-  el.textContent = text;
+/** 짧은 알림(위 1/3 안). icon: 아이템 키(그림 표시) */
+export function toast(text, kind, icon) {
+  const el = $('toast'), im = $('toastIco');
+  $('toastText').textContent = text;
+  const src = icon ? itemIcons[icon] : null;
+  if (src) { im.src = src; im.classList.remove('hidden'); } else im.classList.add('hidden');
   el.className = 'show ' + (kind || '');
   clearTimeout(toastT);
-  toastT = setTimeout(() => { el.className = ''; }, 1800);
+  toastT = setTimeout(() => { el.className = ''; }, 1500);
 }
+export function itemIcon(key) { return itemIcons[key]; }
 
 // ------------------------------------------------------------ 레벨업 카드
-const CARD_ICON = { range: '◎', power: '✸', twin: '⁂', fire: '♨', magnet: '⊛', dash2: '»', fastFall: '↯', vitality: '♥' };
-const CARD_IMG = { range: 'icon_bigmeteor', power: 'fx_explosion', twin: 'icon_multimeteor', fire: 'meteor_fire_down', magnet: 'item_magnet', dash2: 'icon_speed', fastFall: 'icon_cooldown', vitality: 'icon_hp' };
+const CARD_ICON = { range: '◎', power: '✸', twin: '⁂', fire: '♨', magnet: '⊛', dash2: '»', fastFall: '↯', vitality: '♥', boltCount: '⁘', boltRate: '≫', boltPierce: '➶' };
+const CARD_IMG = { range: 'icon_bigmeteor', power: 'fx_explosion', twin: 'icon_multimeteor', fire: 'meteor_fire_down', magnet: 'item_magnet', dash2: 'icon_speed', fastFall: 'icon_cooldown', vitality: 'icon_hp', boltCount: 'item_orb', boltRate: 'item_feather', boltPierce: 'item_lens' };
 export function showLevelUp(level, special, cards, onPick) {
   const chest = level === 0;   // 보스 보물상자 보너스 카드
   $('lvTitle').textContent = chest ? t('chest.title') : t('levelUp');
@@ -568,6 +703,8 @@ function refreshSettings() {
   $('stSound').classList.toggle('off', !s.sound);
   $('stVib').textContent = s.vibrate ? t('on') : t('off');
   $('stVib').classList.toggle('off', !s.vibrate);
+  $('stFlick').textContent = s.flickDash ? t('on') : t('off');
+  $('stFlick').classList.toggle('off', !s.flickDash);
   const q = $('stQuality');
   q.innerHTML = '';
   for (const k of ['auto', 'high', 'mid', 'low']) { const o = document.createElement('option'); o.value = k; o.textContent = t('quality.' + k); q.appendChild(o); }
@@ -598,7 +735,7 @@ function submitNick() {
 
 // ------------------------------------------------------------ 첫 판 안내: 게임은 안내가 끝나거나 건너뛸 때까지 멈춰 있음
 let tutTimer = 0, tutStep = -1, tutNext = null, tutSkip = null;
-const TUT = ['move', 'mana', 'tap', 'dash'];
+const TUT = ['move', 'bolt', 'dash'];
 const TUT_STEP_MS = 4000;
 export function startTutorial(onDone) {
   const el = $('tutorial');
@@ -614,6 +751,7 @@ export function startTutorial(onDone) {
     $('tutCount').textContent = `${tutStep + 1}/${TUT.length}`;
     drawTut(k);
     el.dataset.step = k;
+    $('btnDash').classList.toggle('pulse', k === 'dash');
     tutTimer = setTimeout(next, TUT_STEP_MS);
   };
   tutNext = (e) => { if (e.target.closest('#tutSkip')) return; sfx.click(); next(); };   // 상자를 누르면 다음 안내
@@ -624,6 +762,7 @@ export function startTutorial(onDone) {
 }
 export function stopTutorial() {
   clearTimeout(tutTimer);
+  $('btnDash').classList.remove('pulse');
   $('tutorial').classList.add('hidden');
   if (tutNext) { $('tutorial').querySelector('.tutBox').removeEventListener('click', tutNext); tutNext = null; }
   if (tutSkip) { $('tutSkip').removeEventListener('click', tutSkip); tutSkip = null; }
@@ -638,6 +777,11 @@ function drawTut(k) {
     for (let i = 0; i < 12; i++) dot(c, 33 + i, 22, P(31));
     dot(c, 43, 21, P(31)); dot(c, 43, 23, P(31)); dot(c, 42, 20, P(31)); dot(c, 42, 24, P(31));
     c.drawImage(mage, 48, 10);
+  } else if (k === 'bolt') {
+    c.drawImage(mage, 4, 10);
+    for (let i = 0; i < 5; i++) c.drawImage(slime, 58 + (i % 2) * 12, 4 + i * 7);
+    for (let i = 0; i < 3; i++) { const x = 30 + i * 9; dot(c, x, 20, P(11)); dot(c, x + 1, 20, P(12)); dot(c, x + 2, 20, P(31)); }
+    disc(c, 58, 21, 2.5, P(31));
   } else if (k === 'mana') {
     c.drawImage(mage, 8, 10);
     for (let i = 0; i < 7; i++) c.drawImage(slime, 34 + (i % 3) * 10, 4 + ((i / 3) | 0) * 12 + (i % 2) * 3);
@@ -654,3 +798,36 @@ function drawTut(k) {
     c.drawImage(mage, 66, 10);
   }
 }
+
+// ------------------------------------------------------------ 메테오 습득(레벨 5): 하늘에서 빛 + 위쪽 안내, 3초
+let learnTimer = 0;
+export function showLearn(screenX, onDone) {
+  const el = $('learn');
+  el.querySelector('.beam').style.left = Math.round(screenX) + 'px';
+  el.classList.remove('hidden');
+  requestAnimationFrame(() => fitAll(el));
+  clearTimeout(learnTimer);
+  learnTimer = setTimeout(() => { hideLearn(); onDone(); }, CONFIG.meteor.learnTime * 1000);
+}
+export function hideLearn() { clearTimeout(learnTimer); $('learn').classList.add('hidden'); }
+
+// ------------------------------------------------------------ ?debug=1 : 아이템 바로 소환 버튼
+function setupDebugItems() {
+  const box = $('dbgItems');
+  box.classList.remove('hidden');
+  for (const k of KINDS) {
+    const b = document.createElement('button');
+    b.title = k;
+    b.innerHTML = itemIcons[k] ? `<img alt="${k}" src="${itemIcons[k]}">` : k.slice(0, 3);
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugItem && H.debugItem(k); });
+    box.appendChild(b);
+  }
+  for (const [label, fn] of [['Lv+', 'debugLevel'], ['God', 'debugGod']]) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H[fn] && H[fn](b); });
+    box.appendChild(b);
+  }
+}
+
+export function setAutoplayText(txt) { const el = $('autoplay'); el.classList.toggle('hidden', !txt); el.textContent = txt || ''; }

@@ -12,7 +12,8 @@ export const SPRITE_ORDER = [
   'mage', 'hero_apprentice', 'hero_pyromancer', 'hero_icewitch', 'hero_necromancer',
   'meteor_fire', 'meteor_ice', 'meteor_poison', 'meteor_lightning', 'meteor_dark', 'meteor_gold',
   'fx_explosion', 'fx_hit', 'fx_levelup',
-  'item_expgem', 'item_coin', 'item_potion', 'item_magnet', 'item_chest',
+  'item_expgem', 'item_coin',
+  ...CONFIG.items.kinds.map((k) => 'item_' + k.key),
   'prop_tree', 'prop_rock', 'prop_bush', 'prop_ruin',
   'ground', 'ground_dirt',
 ];
@@ -260,6 +261,29 @@ function genTitleBg() {
   return b.canvas();
 }
 
+// 아이템 그림이 없을 때: 등급 색 도형 + 이름 첫 글자
+const RARITY_COL = { common: [31, 14], rare: [11, 10], legend: [24, 23], boss: [19, 17] };
+function itemFallback(key, size) {
+  const kind = CONFIG.items.kinds.find((k) => k.key === key);
+  const col = RARITY_COL[kind ? kind.rarity : 'common'];
+  const [w, h] = size;
+  const b = new PB(w, h);
+  b.ellipse(w / 2, h / 2, w / 2 - 1, h / 2 - 1, col[1]);
+  b.ellipse(w / 2 - 0.5, h / 2 - 0.5, w / 2 - 2.5, h / 2 - 2.5, col[0]);
+  b.outline();
+  const c = b.canvas(), ctx = c.getContext('2d');
+  let ch = key[0].toUpperCase();
+  try { const nm = (globalThis.__itemName && globalThis.__itemName(key)) || ''; if (nm) ch = [...nm][0]; } catch (e) { /* */ }
+  ctx.font = `bold ${Math.round(h * 0.62)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = CONFIG.pixel.palette[1];
+  ctx.fillText(ch, w / 2, h / 2 + 1);
+  // 글자 가장자리 반투명 제거(픽셀 느낌)
+  const im = ctx.getImageData(0, 0, w, h), d = im.data;
+  for (let i = 0; i < d.length; i += 4) d[i + 3] = d[i + 3] < 128 ? 0 : 255;
+  ctx.putImageData(im, 0, 0);
+  return c;
+}
+
 /**
  * 모든 이미지를 로드(없으면 생성).
  * @returns {sprites:{name:canvas}, titleBg, icon, report:{name:'image'|'code'}}
@@ -285,7 +309,10 @@ export async function loadAssets() {
     } else if (img) {
       try {
         const w = img.naturalWidth, h = img.naturalHeight;
-        if (w <= P.nativeMax && h <= P.nativeMax) {
+        if (spec.fit && (w > spec.size[0] || h > spec.size[1])) {   // 맵 아이템: 정해진 크기(16×16)로 줄임
+          canvas = pixelize(img, { w: spec.size[0], h: spec.size[1], tile: false, P }).canvas;
+          report[n] = 'image(fit ' + w + 'x' + h + '→' + spec.size[0] + ')';
+        } else if (w <= P.nativeMax && h <= P.nativeMax) {
           canvas = nativeSprite(img, P, !spec.tile);            // 이미 도트 그림 → 원래 해상도
           report[n] = 'image(native ' + canvas.width + 'x' + canvas.height + ')';
         } else {
@@ -298,6 +325,7 @@ export async function loadAssets() {
       report[n] = 'code';
       if (n === 'title_bg') canvas = genTitleBg();
       else if (GEN[n]) canvas = GEN[n]().canvas();
+      else if (n.startsWith('item_')) canvas = itemFallback(n.slice(5), spec.size);
     }
     if (n === 'title_bg') titleBg = canvas;
     else if (n === 'icon') icon = canvas;

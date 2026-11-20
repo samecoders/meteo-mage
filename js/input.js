@@ -1,6 +1,26 @@
 // 입력: Pointer Events, 손가락마다 역할 구분(이동 조이스틱 / 탭 / 무시).
 // 몹 데이터는 절대 건드리지 않는다(탭은 큐에 넣고 틱에서 처리).
+import { CONFIG } from './config.js';
 const TAP_MS = 250, TAP_PX = 12, JOY_R = 56, DEAD = 0.12;
+const UIC = CONFIG.ui;
+// 튕기기 대시용: 조이스틱 손가락의 최근 위치 기록(고리 버퍼)
+const HN = 16;
+const hist = { t: new Float64Array(HN), x: new Float32Array(HN), y: new Float32Array(HN), n: 0, i: 0 };
+function histPush(x, y) { hist.t[hist.i] = performance.now(); hist.x[hist.i] = x; hist.y[hist.i] = y; hist.i = (hist.i + 1) % HN; if (hist.n < HN) hist.n++; }
+/** 떼기 직전 flickWindow 초 동안 움직인 벡터 → 속도가 기준 이상이면 그 방향 */
+function checkFlick(x, y) {
+  if (!cb.onFlick || (cb.flickEnabled && !cb.flickEnabled())) return;
+  const now = performance.now(), win = UIC.flickWindow * 1000;
+  let ox = x, oy = y, ot = now;
+  for (let k = 1; k <= hist.n; k++) {
+    const j = (hist.i - k + HN) % HN;
+    if (now - hist.t[j] > win) break;
+    ox = hist.x[j]; oy = hist.y[j]; ot = hist.t[j];
+  }
+  const dx = x - ox, dy = y - oy, dist = Math.hypot(dx, dy), dtS = Math.max(0.016, (now - ot) / 1000);
+  input.lastFlick = Math.round(dist / dtS);   // 디버그용: 마지막으로 뗄 때의 손가락 속도(px/s)
+  if (dist >= UIC.flickMinDist && dist / dtS >= UIC.flickSpeed) cb.onFlick(dx, dy);
+}
 
 export const input = {
   mx: 0, my: 0,          // 최종 이동 벡터(길이 0~1)
@@ -20,6 +40,7 @@ function free() { for (let i = 0; i < ptrs.length; i++) if (ptrs[i].id === -1) r
 
 function startJoy(p) {
   joyPtr = p; p.role = 1;
+  hist.n = 0; histPush(p.x, p.y);
   joy.ox = p.x0; joy.oy = p.y0;
   input.joyActive = true;
   baseEl.style.display = knobEl.style.display = 'block';
@@ -65,14 +86,17 @@ function onMove(e) {
     const dx = p.x - p.x0, dy = p.y - p.y0;
     if (dx * dx + dy * dy >= TAP_PX * TAP_PX) { if (!joyPtr) startJoy(p); else p.role = 2; }
   }
-  if (p.role === 1) updateJoy(p.x, p.y);
+  if (p.role === 1) { updateJoy(p.x, p.y); histPush(p.x, p.y); }
 }
 
 function onUp(e) {
   const p = find(e.pointerId);
   if (!p) return;
   if (p.role === 0 && e.type === 'pointerup' && performance.now() - p.t0 <= TAP_MS) cb.onTap(p.x, p.y);
-  if (p.role === 1) endJoy();
+  if (p.role === 1) {
+    if (e.type === 'pointerup') checkFlick(e.clientX, e.clientY);
+    endJoy();
+  }
   p.id = -1;
 }
 

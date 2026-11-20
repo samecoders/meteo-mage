@@ -69,12 +69,45 @@ export function addRing(x, y, r0, r1, dur, col, kind, th) {
 }
 
 // ------------------------------------------------------------ 대시 잔상
-const ACAP = 12;
-const AF = { n: 0, x: new Float32Array(ACAP), y: new Float32Array(ACAP), flip: new Uint8Array(ACAP), life: new Float32Array(ACAP) };
-export function addAfterimage(x, y, flip) {
+const ACAP = 16;
+const AF = { n: 0, x: new Float32Array(ACAP), y: new Float32Array(ACAP), flip: new Uint8Array(ACAP), life: new Float32Array(ACAP), max: new Float32Array(ACAP) };
+export function addAfterimage(x, y, flip, life) {
   if (AF.n >= ACAP) return;
   const i = AF.n++;
-  AF.x[i] = x; AF.y[i] = y; AF.flip[i] = flip; AF.life[i] = 0.28;
+  AF.x[i] = x; AF.y[i] = y; AF.flip[i] = flip; AF.life[i] = AF.max[i] = life || 0.28;
+}
+
+// ------------------------------------------------------------ 번개(천둥의 두루마리) — 그림만, 지연을 두고 연쇄로
+const XCAP = 320, STRIKE_DUR = 0.22;
+const ST = { n: 0, x: new Float32Array(XCAP), y: new Float32Array(XCAP), t: new Float32Array(XCAP) };
+export function addStrike(x, y, delay) {
+  if (ST.n >= XCAP) return;
+  const i = ST.n++;
+  ST.x[i] = x; ST.y[i] = y; ST.t[i] = -delay;
+}
+/** 지그재그 번개: 하늘에서 목표까지 사각 픽셀로 */
+export function fillStrikes(batch, V, colA, colB) {
+  for (let i = 0; i < ST.n; i++) {
+    const t = ST.t[i];
+    if (t < 0) continue;
+    const sx = ST.x[i] * 0.5 - V.left, sy = ST.y[i] * 0.5 - V.top;
+    if (sx < -20 || sx > V.iw + 20 || sy < -10 || sy > V.ih + 120) continue;
+    const f = t / STRIKE_DUR;
+    let x = sx + ((i * 37) % 21) - 10, y = sy - 110;
+    const seg = 7, h = 110 / seg;
+    for (let k = 0; k < seg; k++) {
+      const nx = k === seg - 1 ? sx : sx + (((i * 13 + k * 29 + ((t * 40) | 0)) % 17) - 8), ny = y + h;
+      for (let q = 0; q < 4; q++) batch.push(x + (nx - x) * q / 4, y + (ny - y) * q / 4, f < 0.5 ? 1.5 : 1, 0, q & 1 ? colB : colA, 3, 255, 0, 0);
+      x = nx; y = ny;
+    }
+    if (f < 0.6) batch.push(sx, sy, 6 + f * 10, 0, colA, 0, 140, 0, 0);
+  }
+}
+function updateStrikes(dt) {
+  for (let i = 0; i < ST.n; i++) {
+    ST.t[i] += dt;
+    if (ST.t[i] >= STRIKE_DUR) { const j = --ST.n; ST.x[i] = ST.x[j]; ST.y[i] = ST.y[j]; ST.t[i] = ST.t[j]; i--; }
+  }
 }
 
 // ------------------------------------------------------------ 스프라이트 이펙트(폭발 그림, 타격, 레벨업 고리, 동전)
@@ -120,13 +153,14 @@ export function fillSpriteFx(batch, V, plx, ply) {
 export const shake = { amp: 0, x: 0, y: 0 };
 export function addShake(a) { shake.amp = Math.min(E.shakeMax, Math.max(shake.amp, a)); }
 
-export function clearEffects() { P.n = 0; K.n = 0; CR.n = 0; RG.n = 0; AF.n = 0; SF.n = 0; shake.amp = 0; }
+export function clearEffects() { P.n = 0; K.n = 0; CR.n = 0; RG.n = 0; AF.n = 0; SF.n = 0; ST.n = 0; shake.amp = 0; }
 
 /** dt: 효과 진행 시간(히트스톱·일시정지면 0), realDt: 화면 흔들림용 실제 시간 */
 export function updateEffects(dt, realDt) {
   updateShake(realDt);
   if (dt <= 0) return;
   updateSpriteFx(dt);
+  updateStrikes(dt);
   // 파티클
   const drag = Math.exp(-2.5 * dt);
   for (let i = 0; i < P.n; i++) {
@@ -156,7 +190,7 @@ export function updateEffects(dt, realDt) {
   }
   for (let i = 0; i < AF.n; i++) {
     AF.life[i] -= dt;
-    if (AF.life[i] <= 0) { const j = --AF.n; AF.x[i] = AF.x[j]; AF.y[i] = AF.y[j]; AF.flip[i] = AF.flip[j]; AF.life[i] = AF.life[j]; i--; }
+    if (AF.life[i] <= 0) { const j = --AF.n; AF.x[i] = AF.x[j]; AF.y[i] = AF.y[j]; AF.flip[i] = AF.flip[j]; AF.life[i] = AF.life[j]; AF.max[i] = AF.max[j]; i--; }
   }
 }
 
@@ -200,7 +234,7 @@ export function fillCorpses(batch, V) {
 
 export function fillAfterimages(batch, V, sprite) {
   for (let i = 0; i < AF.n; i++) {
-    const fade = Math.min(63, ((1 - AF.life[i] / 0.28) * 63) | 0);
+    const fade = Math.min(63, (((1 - AF.life[i] / AF.max[i]) * 0.7 + 0.3) * 63) | 0);
     batch.push(AF.x[i] * 0.5 - V.left, AF.y[i] * 0.5 - V.top, sprite, AF.flip[i] | 8, 0, 1, fade);
   }
 }

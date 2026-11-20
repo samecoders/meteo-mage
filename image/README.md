@@ -35,3 +35,11 @@
 
 추가 파일은 `js/config.js` 의 `sprites` / `uiImages` 에 등록되어 있습니다(2026-11-19). 아직 쓰지 않는 것: fx_crater, meteor_*_down(불꽃 제외), icon_hp, ui_heart, ui_gear.
 가로·세로 128px 이하 이미지는 크기를 줄이지 않고 원래 도트 해상도 그대로 씁니다.
+
+## 2026-11-20 아이템 18종 + 버튼 아이콘 3종
+
+`Gemini_Generated_Image_v2.png`를 잘라 만든 파일입니다. 배경은 투명이고 원래 도트 해상도(약 22~31px, 정사각형 캔버스)입니다.
+
+- 아이템: item_star, item_potion, item_heart, item_crystal, item_boots, item_feather, item_magnet, item_coins, item_scroll, item_hourglass, item_bomb, item_thunder, item_orb, item_ring, item_lens, item_twin, item_fury, item_chest
+- 버튼 아이콘: ui_dash, ui_shield, ui_dashup
+- item_potion, item_magnet, item_chest는 새 그림으로 바꿨고, 이전 그림은 `*_v1.png`로 남겨 두었습니다.

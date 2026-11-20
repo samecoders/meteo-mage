@@ -3,7 +3,23 @@
 //  (시간 단위: 초, 거리 단위: 월드 단위. 내부 화면 1픽셀 = 월드 2단위)
 // =====================================================================
 
+// 화면 아래쪽 이 비율(40%)에는 메테오(마력 링)와 대시 버튼만 둔다. 이동하는 손가락이 가리는 자리라서.
+// 다른 버튼·숫자·알림·팝업은 모두 위쪽에. ui.js 의 checkHudLayout() 이 이 값으로 배치를 검사한다.
+export const HUD_BOTTOM_FORBIDDEN = 0.4;
+
 export const CONFIG = {
+  // ------------------------------------------------------------ 화면 배치(HTML UI)
+  ui: {
+    bottomForbidden: HUD_BOTTOM_FORBIDDEN,
+    bottomAllowed: ['mana', 'btnDash', 'rightCol', 'hudBottom'],  // 아래쪽에 있어도 되는 것
+    notifyMaxY: 1 / 3,     // 알림(아이템 획득·메테오 습득 등)은 화면 위 1/3 안에서만
+    minButton: 48,         // 버튼 최소 크기(CSS 픽셀)
+    // 튕기기 대시: 이동하던 손가락을 빠르게 쓸고 떼면 그 방향으로 대시(설정에서 끌 수 있음)
+    flickWindow: 0.1,      // 떼기 직전 이 시간(초) 동안의 손가락 속도로 판단
+    flickSpeed: 1100,      // 이 속도(CSS 픽셀/초) 이상이면 대시
+    flickMinDist: 28,      // 그 시간 동안 최소 이만큼(CSS 픽셀)은 움직여야 함
+  },
+
   // ------------------------------------------------------------ 시뮬레이션
   sim: {
     tickRate: 30,          // 게임 로직 틱/초 (고정)
@@ -20,6 +36,8 @@ export const CONFIG = {
     zoomFit: 2.6,          // 폭발 지름 × 이 값 이 짧은 변(월드)보다 크면 줌 아웃
     zoomSpeed: 90,         // 줌 변화 속도 (내부 픽셀/초) — 천천히
     camLerp: 7,            // 카메라 따라가기 강도(클수록 빠름)
+    lead: 0.32,            // 이동 방향으로 앞을 더 보여 줌: 속도 × 이 시간(초)
+    leadMax: 110,          // 앞보기 최대 거리(월드)
   },
 
   // ------------------------------------------------------------ 공간 격자
@@ -52,15 +70,24 @@ export const CONFIG = {
     farSkip: 1500,         // 법사에서 이 거리(축별) 밖의 몹은 밀어내기 생략 (기기와 무관한 고정값)
     despawnFactor: 1.75,   // 스폰 반경 × 이 값 보다 멀어지면 반대편으로 재배치
     flashTicks: 3,         // 피격 깜빡임 틱 수
+    // 초반 완화: 처음 easeTime 초 동안 몹 체력·속도를 낮췄다가 서서히 원래 값으로
+    easeTime: 180,
+    easeHp: 0.5,           // 0초일 때 체력 배율
+    easeSpeed: 0.72,       // 0초일 때 속도 배율
   },
 
   // ------------------------------------------------------------ 스폰
   spawn: {
     // [게임 시간(초), 필드 목표 몹 수] — 사이 값은 선형 보간
+    // 대략 1분 300 / 3분 2,000 / 6분 10,000 / 9분 30,000 / 12분 50,000
     curve: [
-      [0, 40], [20, 150], [45, 500], [90, 2000], [150, 6000], [210, 12000],
-      [270, 20000], [330, 29000], [400, 39000], [480, 52000], [600, 60000],
+      [0, 60], [30, 160], [60, 300], [120, 900], [180, 2000], [270, 5000],
+      [360, 10000], [450, 18000], [540, 30000], [630, 40000], [720, 50000], [840, 60000],
     ],
+    // 시작 직후: 화면 가장자리 바로 밖에서 생겨 3초 안에 첫 무리가 보이게
+    openingTime: 10,       // 이 시간(초) 동안
+    openingMargin: 50,     // 화면 가장자리에서 이만큼 바깥(월드). 화면 크기는 기기와 무관하게 9:16 로 가정
+    openingAspect: 16 / 9,
     perTickMax: 220,       // 한 틱에 생성할 최대 몹 수(대규모 스폰을 여러 틱에 분산)
     radius: 1100,          // 기본 스폰 반경(월드). 줌 아웃 단계에 비례해 커짐
     groupMin: 8,           // 무리 크기
@@ -105,37 +132,98 @@ export const CONFIG = {
     ],
   },
 
-  // ------------------------------------------------------------ 떨어지는 아이템
+  // ------------------------------------------------------------ 맵 아이템
+  // 효과는 그 판에만(죽으면 사라짐). 시간제 효과를 다시 먹으면 시간이 연장된다.
   items: {
-    max: 16,
-    life: 25,
-    pickupRadius: 22,
-    dropMinKills: 300,     // 한방에 이만큼 이상 잡으면 아이템이 떨어질 수 있음
-    potionChance: 0.12,    // 체력 물약: 체력 +potionHeal
-    potionHeal: 35,
-    magnetChance: 0.07,    // 자석: 필드의 모든 마력 구슬을 끌어옴
-    chestCards: 1,         // 보스 보물상자: 보너스 카드 장수
+    max: 24,               // 필드 아이템 풀 크기(보물상자에서 나온 것 포함)
+    fieldMax: 6,           // 평원에 저절로 생기는 아이템 최대 수
+    everyMin: 8, everyMax: 12,   // 생성 간격(초)
+    distMin: 250, distMax: 600,  // 법사에게서 떨어진 거리(월드)
+    firstAt: 6,            // 첫 아이템 생성 시각(초)
+    life: 30,              // 이 시간이 지나면 사라짐
+    blinkLast: 5,          // 사라지기 전 깜빡이는 시간
+    pickupRadius: 26,
+    rarity: { common: 0.6, rare: 0.3, legend: 0.1 },
+    meteorOnly: ['ring', 'lens', 'twin', 'fury'],  // 메테오를 배우기 전(레벨 4 이하)에는 안 나옴
+    chestItems: 3,         // 보물상자를 열면 나오는 아이템 수
+    chestLife: 60,
+    // 효과 수치
+    starTime: 7, starSpeed: 0.3, starBlink: 2,
+    heartMax: 6,
+    crystalExpPct: 0.3,    // 레벨 4 이하에서 마력 결정: 필요 경험치의 30%
+    bootsPct: 0.08, bootsMax: 5,
+    featherPct: 0.12, featherMax: 5,
+    magnetTime: 2.5,
+    coinsGold: 150, coinsGoldPerMin: 60,   // 금화 주머니: 150 + 분당 60
+    scrollPct: 0.5,
+    hourglassTime: 6, hourglassSlow: 0.5,
+    bombRadius: 190, bombPower: 40,
+    thunderCount: 300, thunderDamage: 999,
+    orbMax: 5,
+    ringPct: 0.1, ringMax: 5,
+    lensPct: 0.06, lensMax: 5,
+    twinTime: 15,
+    furyTime: 10, furyMult: 3,
+    // 종류: key = 파일 item_<key>.png, 이름은 lang 의 item.<key>.name
+    kinds: [
+      { key: 'star',      rarity: 'legend' },
+      { key: 'potion',    rarity: 'common' },
+      { key: 'heart',     rarity: 'rare' },
+      { key: 'crystal',   rarity: 'common' },
+      { key: 'boots',     rarity: 'common' },
+      { key: 'feather',   rarity: 'common' },
+      { key: 'magnet',    rarity: 'common' },
+      { key: 'coins',     rarity: 'common' },
+      { key: 'scroll',    rarity: 'rare' },
+      { key: 'hourglass', rarity: 'rare' },
+      { key: 'bomb',      rarity: 'rare' },
+      { key: 'thunder',   rarity: 'rare' },
+      { key: 'orb',       rarity: 'common' },
+      { key: 'ring',      rarity: 'rare' },
+      { key: 'lens',      rarity: 'rare' },
+      { key: 'twin',      rarity: 'legend' },
+      { key: 'fury',      rarity: 'legend' },
+      { key: 'chest',     rarity: 'boss' },
+    ],
+  },
+
+  // ------------------------------------------------------------ 마법탄 (레벨 1부터 자동 발사)
+  bolts: {
+    max: 300,              // 풀 크기
+    rate: 3,               // 초당 발사 횟수(기본)
+    count: 1,              // 한 번에 나가는 수(기본)
+    pierce: 0,             // 관통 수(기본)
+    damage: 3.2,
+    speed: 560,
+    life: 0.9,
+    radius: 5,             // 충돌 반경(+몹 반경)
+    range: 520,            // 이 거리 안의 가장 가까운 몹을 노림
+    spread: 0.16,          // 여러 발일 때 사이 각도(라디안)
+    rateCardPct: 0.25,     // 발사 속도 카드 +25%
+    maxCount: 10, maxPierce: 6,
   },
 
   // ------------------------------------------------------------ 법사
   player: {
-    speed: 124,            // 법사보다 빠른 몹이 없게(가장 빠른 박쥐·늑대·흑기사 108~112). 2026-11-19 자동 플레이 측정으로 조정
-    accel: 14,             // 가속/감속 보간 강도
+    speed: 161,            // 2026-11-20: 124 → +30%
+    accelTime: 0.08,       // 최고 속도까지 걸리는 시간(초)
+    stopTime: 0.03,        // 손을 떼면 이 시간 안에 멈춤(밀리지 않게)
     radius: 8,             // 몹 접촉 판정 반경
-    // ---- 체력: 한 번 닿아도 바로 죽지 않음
-    hp: 100,               // 최대 체력
-    hurtInvuln: 0.8,       // 피해를 입은 뒤 무적 시간(깜빡임)
-    knockRadius: 120,      // 피해를 입을 때 주변 몹을 밀쳐내는 반경(빠져나갈 틈)
-    knockImpulse: 420,
-    regen: 2.5,            // 초당 자연 회복
-    regenDelay: 4,         // 마지막 피해 후 이 시간이 지나야 회복 시작
+    // ---- 체력: 하트. 몹에 닿으면 1칸, 0칸이면 게임오버. 자기 메테오는 한 방에 죽음
+    hearts: 3,             // 시작 하트
+    hurtInvuln: 1.5,       // 맞은 뒤 무적 시간(깜빡임)
+    knockRadius: 220,      // 맞을 때 주변 몹을 넓게 밀쳐냄
+    knockImpulse: 620,
+    regenDelay: 6,         // 마지막으로 맞고 이 시간이 지나면
+    regenEvery: 5,         // 이 간격마다 하트 1칸씩 회복
+    fastTrail: 0.85,       // 최고 속도의 이 비율 이상이면 잔상·속도선
   },
 
   // ------------------------------------------------------------ 대시
   dash: {
     distance: 140,
     duration: 0.15,
-    cooldown: 4,
+    cooldown: 2.5,
     upgradePct: 0.2,       // 대시 강화 1단계당 거리 +20%
     scaleWithMeteor: true, // 범위 카드로 메테오 반경이 커진 만큼 대시 거리도 늘어남(자기 메테오에서 항상 탈출 가능)
     maxUpgrades: 5,
@@ -145,11 +233,10 @@ export const CONFIG = {
   // ------------------------------------------------------------ 마력
   mana: {
     max: 100,
-    start: 50,             // 판 시작 때 마력(첫 메테오를 빨리 쓰게)
-    regen: 2.4,            // 기본 초당 충전
+    regen: 11,             // 기본 초당 충전 (평균 6~8초에 한 번 쏠 수 있게. 레벨 5에 메테오를 배우면 가득 찬 채로 시작)
     nearRadius: 230,       // 주변 몹 수를 세는 반경
-    nearK: 1.2,            // 초당 추가 충전 = min(nearCap, nearK × log2(1 + 주변 몹 수))
-    nearCap: 10,
+    nearK: 1.0,            // 초당 추가 충전 = min(nearCap, nearK × log2(1 + 주변 몹 수))
+    nearCap: 6,
     nearMissBand: 45,      // 폭발 반경 바로 바깥 이 거리 이내면 아슬아슬 보너스
     nearMissBonus: 20,     // 아슬아슬 보너스(마력 %)
   },
@@ -159,14 +246,17 @@ export const CONFIG = {
     radius: 120,           // 기본 폭발 반경 (중앙 메테오로 바꾸며 105→120: 봇 측정으로 이전 생존 시간에 맞춤)
     power: 10,             // 기본 위력(중심 피해)
     edgeDamage: 0.5,       // 가장자리 피해 비율
-    fallTime: 1.2,
-    fastFallTime: 0.9,
+    fallTime: 1.0,
+    fastFallTime: 0.8,
+    unlockLevel: 5,        // 이 레벨에 메테오 습득(그 전에는 마력 링이 숨겨지고 탭해도 아무 일 없음)
+    learnTime: 3,          // 메테오 습득 안내 시간(초, 게임 정지)
     rangeCardPct: 0.15,
     powerCardPct: 0.30,
     twinDelay: 0.5,
-    target: 'center',      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 / 'tap': 탭한 자리
+    target: 'tap',         // 'tap': 탭한 자리(2026-11-20 수정 요청: "몹이 올 자리를 탭") / 'center': 누른 순간의 법사 자리
+    _targetOld: 'center',      // 'center': 누른 순간의 화면 중앙(법사 자리)에 고정해서 떨어짐 / 'tap': 탭한 자리
     castGuard: true,       // target 'center': 메테오가 떨어지는 동안 몹에게는 안 다치고 밀쳐내지도 않음(몹이 모여듦). 자기 메테오 피해는 그대로
-    selfDamage: 50,        // 자기 메테오 폭발에 휘말렸을 때 피해. 대시 중이어도 맞음 → 떨어지기 전에 반경 밖으로 대시(거리 140 > 반경 120)
+    // 자기 메테오 폭발에 휘말리면 한 방에 죽음(대시 중이어도). 쉴드·무적의 별만 막는다        // 자기 메테오 폭발에 휘말렸을 때 피해. 대시 중이어도 맞음 → 떨어지기 전에 반경 밖으로 대시(거리 140 > 반경 120)
     shockRange: 1.7,       // 반경 × 이 값까지 충격파로 밀어냄
     shockImpulse: 300,
     fireDuration: 3,
@@ -193,13 +283,18 @@ export const CONFIG = {
 
   // ------------------------------------------------------------ 성장
   progress: {
-    expBase: 100,          // Lv1→2 필요 경험치
-    expGrowth: 2.0,        // 레벨마다 필요 경험치 배율(지수)
+    // 필요 경험치: 표(Lv1→2, Lv2→3, …). 표 끝 다음부터는 마지막 값 × expGrowth^(넘은 레벨)
+    // 목표: 레벨 5 ≈ 1분 30초, 레벨 7 ≈ 3분. 초반은 빨리, 레벨 8 이후 가파르게
+    expTable: [12, 30, 55, 90, 420, 900, 2600],
+    expGrowth: 2.1,
     killsPerGold: 10,      // 10킬당 골드 1
     comboMultK: 0.35,      // 한방 배율 = 1 + K × log10(1 + 킬 수)
     comboGoldBonus: [[100, 5], [500, 30], [1000, 80], [3000, 300], [8000, 1000]],
-    specialEvery: 5,
-    levelUpDelay: 0.6,     // 레벨업 카드가 뜨기 전 대기(게임 시간)
+    specialEvery: 5,       // 특수 카드: 레벨 10, 15, 20… (레벨 5는 메테오 습득)
+    levelUpDelay: 0.15,    // 레벨업 카드가 뜨기 전 대기(게임 시간) — 0.2초 안에
+    resumePushRadius: 230, // 카드를 고르고 다시 시작할 때 법사 주변 몹을 밀어냄
+    resumePushImpulse: 600,
+    chainTime: 2,          // 연속 킬 콤보: 이 시간 안에 다음 킬이 이어지면 유지
   },
 
   // ------------------------------------------------------------ 판 안 상점
@@ -295,9 +390,25 @@ export const CONFIG = {
     fx_levelup:       { file: 'fx_levelup.png',       size: [32, 20] },
     item_expgem:      { file: 'item_expgem.png',      size: [10, 8] },
     item_coin:        { file: 'item_coin.png',        size: [10, 10] },
-    item_potion:      { file: 'item_potion.png',      size: [10, 12] },
-    item_magnet:      { file: 'item_magnet.png',      size: [12, 12] },
-    item_chest:       { file: 'item_chest.png',       size: [16, 14] },
+    // 맵 아이템: 16×16(보물상자 20×20). 더 큰 도트 그림은 이 크기로 줄여서 씀(fit)
+    item_star:        { file: 'item_star.png',        size: [16, 16], fit: true },
+    item_potion:      { file: 'item_potion.png',      size: [16, 16], fit: true },
+    item_heart:       { file: 'item_heart.png',       size: [16, 16], fit: true },
+    item_crystal:     { file: 'item_crystal.png',     size: [16, 16], fit: true },
+    item_boots:       { file: 'item_boots.png',       size: [16, 16], fit: true },
+    item_feather:     { file: 'item_feather.png',     size: [16, 16], fit: true },
+    item_magnet:      { file: 'item_magnet.png',      size: [16, 16], fit: true },
+    item_coins:       { file: 'item_coins.png',       size: [16, 16], fit: true },
+    item_scroll:      { file: 'item_scroll.png',      size: [16, 16], fit: true },
+    item_hourglass:   { file: 'item_hourglass.png',   size: [16, 16], fit: true },
+    item_bomb:        { file: 'item_bomb.png',        size: [16, 16], fit: true },
+    item_thunder:     { file: 'item_thunder.png',     size: [16, 16], fit: true },
+    item_orb:         { file: 'item_orb.png',         size: [16, 16], fit: true },
+    item_ring:        { file: 'item_ring.png',        size: [16, 16], fit: true },
+    item_lens:        { file: 'item_lens.png',        size: [16, 16], fit: true },
+    item_twin:        { file: 'item_twin.png',        size: [16, 16], fit: true },
+    item_fury:        { file: 'item_fury.png',        size: [16, 16], fit: true },
+    item_chest:       { file: 'item_chest.png',       size: [20, 20], fit: true },
     prop_tree:        { file: 'prop_tree.png',        size: [22, 24] },
     prop_rock:        { file: 'prop_rock.png',        size: [16, 14] },
     prop_bush:        { file: 'prop_bush.png',        size: [18, 14] },
@@ -314,6 +425,9 @@ export const CONFIG = {
     'ui_medal_gold', 'ui_medal_silver', 'ui_medal_bronze',
     'icon_multimeteor', 'icon_bigmeteor', 'icon_speed', 'icon_cooldown', 'icon_hp', 'icon_shield',
     'item_magnet', 'item_chest', 'fx_explosion', 'meteor_fire_down',
+    'ui_dash', 'ui_shield', 'ui_dashup',
+    'item_star', 'item_potion', 'item_heart', 'item_crystal', 'item_boots', 'item_feather', 'item_coins', 'item_scroll',
+    'item_hourglass', 'item_bomb', 'item_thunder', 'item_orb', 'item_ring', 'item_lens', 'item_twin', 'item_fury',
   ],
 
   // ------------------------------------------------------------ 평원 장식(그림만, 판정 없음)
@@ -330,11 +444,16 @@ export const CONFIG = {
     supabaseUrl: '',       // 예: 'https://abcd1234.supabase.co'
     supabaseAnonKey: '',   // 프로젝트 Settings → API 의 anon public 키
     timeoutMs: 6000,
+    season: 2,             // 2026-11-20 규칙 변경(하트·마법탄·아이템) → 시즌 2. 이전 기록과 섞이지 않음
   },
 
   // ------------------------------------------------------------ 벤치마크
   bench: {
     autoMeteorEvery: 10,
+    // ?autoplay=1 : 봇이 autoplayGames 판을 하고 평균 생존 시간·도달 레벨을 콘솔과 화면에 출력
+    autoplayGames: 10,
+    autoplayMaxSec: 900,
+    autoplaySpeed: 40,     // 한 화면 프레임에 돌리는 게임 프레임 수(빨리 감기)
     circleRadius: 420,
     circleSpeed: 0.35,     // 라디안/초
   },

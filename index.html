@@ -23,38 +23,58 @@
   <!-- ====================== 게임 HUD ====================== -->
   <div id="hurtFlash"></div>
   <div id="hud" class="hidden">
-    <div id="hudTop">
-      <div id="hudKills"><img id="icoKills" class="hico hidden" alt=""><span id="hudKillsN">0</span></div>
-      <div id="hudTimeRow"><img id="icoTime" class="hico s hidden" alt=""><b id="hudTime">0:00</b></div>
-      <div id="hudField"><span data-i18n="hud.field"></span> <b id="hudMobs">0</b></div>
+    <!-- 위쪽 줄 1: 레벨·경험치 / 킬 수 / 일시정지 -->
+    <div id="hudRow1">
       <div id="hudLevel"><span id="hudLv">Lv.1</span><div class="bar"><div id="hudExp"></div></div></div>
-      <div id="hudHp"><img id="icoHeart" class="hico s hidden" alt=""><div class="bar"><div id="hudHpBar"></div></div><b id="hudHpN">100</b></div>
-      <div id="hudGold"><i class="coin"></i><b id="hudGoldN">0</b></div>
+      <div id="hudKills"><img id="icoKills" class="hico hidden" alt=""><span id="hudKillsN">0</span></div>
+      <button id="btnPause" class="pix icon" aria-label="pause"><i class="pauseIco"></i></button>
     </div>
-    <button id="btnPause" class="pix icon" aria-label="pause"><i class="pauseIco"></i></button>
-    <div id="combo"></div>
-    <div id="bossArrows"></div>
-    <div id="popups"></div>
-    <div id="toast"></div>
-    <div id="hudBottom">
-      <div id="shopBtns">
-        <button id="btnShield" class="pix shop">
+    <!-- 위쪽 줄 2: 하트·켜진 효과 / 이번 판 골드·쉴드 구매·대시 강화 구매 -->
+    <div id="hudRow2">
+      <div id="hudLeft">
+        <div id="hearts"></div>
+        <div id="effects"></div>
+      </div>
+      <div id="hudRight">
+        <div id="hudGold"><i class="coin"></i><b id="hudGoldN">0</b></div>
+        <button id="btnShield" class="pix shop" aria-label="shield">
           <canvas id="icoShield" width="12" height="12"></canvas><img id="imgShield" class="sico hidden" alt="">
-          <span class="sl fit" data-i18n="shop.shield"></span>
           <b class="price"><i class="coin"></i><span id="shieldPrice">0</span></b>
         </button>
-        <button id="btnDashUp" class="pix shop">
+        <button id="btnDashUp" class="pix shop" aria-label="dash upgrade">
           <canvas id="icoDash" width="12" height="12"></canvas><img id="imgDash" class="sico hidden" alt="">
-          <span class="sl fit"><span data-i18n="shop.dash"></span> <small id="dashLvl">0/5</small></span>
+          <small id="dashLvl">0/5</small>
           <b class="price"><i class="coin"></i><span id="dashPrice">0</span></b>
         </button>
       </div>
+    </div>
+    <div id="hudSub"><span id="hudTimeRow"><img id="icoTime" class="hico s hidden" alt=""><b id="hudTime">0:00</b></span><span id="hudField"><span data-i18n="hud.field"></span> <b id="hudMobs">0</b></span></div>
+    <div id="chain"></div>
+    <div id="dbgItems" class="hidden"></div>
+    <div id="combo"></div>
+    <div id="bossArrows"></div>
+    <div id="popups"></div>
+    <div id="toast"><img id="toastIco" class="hidden" alt=""><span id="toastText"></span></div>
+    <!-- 아래쪽 40%: 메테오(마력 링)와 대시 버튼만. 다른 것은 추가하지 않는다 -->
+    <div id="hudBottom">
       <div id="rightCol">
         <canvas id="mana" width="40" height="40"></canvas>
         <button id="btnDash" aria-label="dash"><canvas id="dashCv" width="28" height="28"></canvas></button>
       </div>
     </div>
   </div>
+
+  <!-- ====================== 메테오 습득(레벨 5) ====================== -->
+  <div id="learn" class="hidden">
+    <div class="beam"></div>
+    <div class="learnBox pixbox">
+      <div class="lt" data-i18n="learn.title"></div>
+      <p class="ld fit-wrap" data-i18n="learn.desc"></p>
+    </div>
+  </div>
+
+  <!-- ====================== 자동 플레이 결과 ====================== -->
+  <pre id="autoplay" class="hidden"></pre>
 
   <!-- ====================== 첫 판 안내 ====================== -->
   <div id="tutorial" class="hidden">
@@ -63,7 +83,6 @@
       <p id="tutText"></p>
       <div class="tutRow"><small id="tutCount"></small><button id="tutSkip" class="pix small" data-i18n="tut.skip"></button></div>
     </div>
-    <div class="tutArrow"></div>
   </div>
 
   <!-- ====================== 타이틀 ====================== -->
@@ -157,6 +176,7 @@
       <label class="set"><span class="fit" data-i18n="settings.language"></span><select id="stLang" class="pix"></select></label>
       <div class="set"><span class="fit" data-i18n="settings.sound"></span><button id="stSound" class="pix small fit"></button></div>
       <div class="set"><span class="fit" data-i18n="settings.vibration"></span><button id="stVib" class="pix small fit"></button></div>
+      <div class="set"><span class="fit" data-i18n="settings.flick"></span><button id="stFlick" class="pix small fit"></button></div>
       <label class="set"><span class="fit" data-i18n="settings.quality"></span><select id="stQuality" class="pix"></select></label>
       <div class="set"><span class="fit" data-i18n="settings.profile"></span><button id="stProfile" class="pix small"><span id="stProfileName"></span></button></div>
       <button id="stBack" class="pix fit" data-i18n="back"></button>

@@ -1,15 +1,17 @@
-// 대시: 이동 중이면 그 방향, 멈춰 있으면 마지막으로 바라본 방향으로 순간 돌진.
+// 대시: 이동 중이면 그 방향, 멈춰 있으면 마지막으로 바라본 방향으로 순간 돌진(튕기기 대시는 손가락 방향).
 // 대시 중에는 몹 접촉 무적. 메테오 폭발은 피할 수 없음(판정은 meteor.js).
 import { CONFIG } from './config.js';
 import { addAfterimage } from './render/effects.js';
 
 const D = CONFIG.dash;
 
-/** 대시 거리. 범위 카드로 메테오 반경이 커지면 같은 비율로 늘어남(중앙에서 대시 한 번이면 항상 반경 밖으로) */
+/** 대시 거리. 범위 카드로 메테오 반경이 커지면 같은 비율로 늘어남 */
 export function dashDistance(p, G) {
   const grow = G && D.scaleWithMeteor ? Math.max(1, G.meteorRadius / CONFIG.meteor.radius) : 1;
   return D.distance * (1 + D.upgradePct * p.dashLevel) * grow;
 }
+/** 대시 쿨타임(바람의 깃털 1개당 -12%) */
+export function dashCooldown(p) { return D.cooldown * Math.pow(1 - CONFIG.items.featherPct, p.feathers || 0); }
 export function isDashing(p) { return p.dashT > 0; }
 
 function dir(G, input, out) {
@@ -31,10 +33,12 @@ export function dashPreview(G, input, out) {
   return out;
 }
 
-export function tryDash(G, input) {
+/** dx, dy 를 주면 그 방향(튕기기 대시), 아니면 이동 방향 */
+export function tryDash(G, input, dx, dy) {
   const p = G.player;
   if (!p.alive || p.dashT > 0 || p.dashCharges < 1) return false;
-  dir(G, input, tmp);
+  if (dx !== undefined && (dx || dy)) { const l = Math.hypot(dx, dy); tmp[0] = dx / l; tmp[1] = dy / l; }
+  else dir(G, input, tmp);
   p.dashCharges--;
   p.dashDx = tmp[0]; p.dashDy = tmp[1];
   p.dashT = D.duration;
@@ -50,7 +54,7 @@ export function updateDash(G, dt) {
   const p = G.player;
   if (p.dashCharges < p.dashMax) {
     p.dashCd += dt;
-    if (p.dashCd >= D.cooldown) {
+    if (p.dashCd >= dashCooldown(p)) {
       p.dashCd = 0; p.dashCharges++;
       G.events.push({ type: 'dashReady' });
     }

@@ -1,6 +1,8 @@
+import { CONFIG } from './config.js';
 // localStorage 한 키에 버전 번호와 함께 저장. 값이 깨져 있으면 초기값으로 복구.
 const KEY = 'meteor_mage_save';
 const VERSION = 1;
+const SEASON = CONFIG.ranking.season;   // 규칙이 바뀌면 올림. 이전 시즌 기록은 랭킹·최고 기록에 섞이지 않음
 
 function uuid() {
   if (crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -27,6 +29,7 @@ function defaults() {
       lang: '',
       sound: true,
       vibrate: true,
+      flickDash: true,       // 손가락을 튕기듯 쓸면 대시
       quality: 'auto',       // auto | high | mid | low
       nickname: '',
       country: '',
@@ -65,6 +68,7 @@ function sanitize(raw) {
   if (isStr(s.lang)) d.settings.lang = s.lang;
   if (typeof s.sound === 'boolean') d.settings.sound = s.sound;
   if (typeof s.vibrate === 'boolean') d.settings.vibrate = s.vibrate;
+  if (typeof s.flickDash === 'boolean') d.settings.flickDash = s.flickDash;
   if (['auto', 'high', 'mid', 'low'].includes(s.quality)) d.settings.quality = s.quality;
   if (isStr(s.nickname)) d.settings.nickname = s.nickname.slice(0, 12);
   if (isStr(s.country) && /^[A-Z]{2}$/.test(s.country)) d.settings.country = s.country;
@@ -89,11 +93,12 @@ export const save = {
   /** 판 종료 기록 추가. 새 최고 기록이면 true */
   addRecord(rec) {
     const d = this.data;
+    rec.season = SEASON;
     d.records.push(rec);
     d.records.sort((a, b) => b.kills - a.kills || a.date - b.date);
     d.records.length = Math.min(d.records.length, 20);
     let isBest = false;
-    if (!d.best || rec.kills > d.best.kills) { d.best = rec; isBest = true; }
+    if (!d.best || d.best.season !== SEASON || rec.kills > d.best.kills) { d.best = rec; isBest = true; }
     this.write();
     return isBest;
   },

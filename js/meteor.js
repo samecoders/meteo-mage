@@ -7,7 +7,6 @@ import { spawnOrb } from './orbs.js';
 import { addParticle, addCrater, addRing, addShake, particleRoom, addSpriteFx, spriteW, WHITE } from './render/effects.js';
 import { pal } from './skins.js';
 import { SPR } from './assets.js';
-import { dropItem, ITEM_POTION, ITEM_MAGNET } from './items.js';
 
 const MC = CONFIG.meteor;
 
@@ -37,7 +36,7 @@ export function launchMeteor(G, x, y) {
   const own = MC.target === 'center';
   if (own) { x = G.player.x; y = G.player.y; }
   addMeteor(x, y, 0, G.fallTime, own);
-  if (G.twin) addMeteor(x, y, -MC.twinDelay, G.fallTime, own);
+  if (G.twin || G.twinT > 0) addMeteor(x, y, -MC.twinDelay, G.fallTime, own);
 }
 
 /** 중앙 메테오가 낙하 중인지(시전 보호막) */
@@ -70,9 +69,11 @@ function noteKill(x, y) {
   blockKills[b]++; blockSX[b] += x; blockSY[b] += y;
 }
 
-/** 폭발 판정 + 보상 + 연출 */
-export function explode(G, x, y) {
-  const R = G.meteorRadius, R2 = R * R, power = G.meteorPower, edge = MC.edgeDamage;
+/**
+ * 폭발 판정 + 보상 + 연출. 메테오는 R·power 를 생략(현재 값). 마나 폭탄은 noSelf=true(법사 피해 없음).
+ */
+export function explode(G, x, y, Rr, powerR, noSelf) {
+  const R = Rr || G.meteorRadius, R2 = R * R, power = powerR || G.meteorPower, edge = MC.edgeDamage;
   const SR = R * MC.shockRange, SR2 = SR * SR, imp = MC.shockImpulse;
   const g = grid, cs = g.cs, cols = g.cols, start = g.start, items = g.items;
   const X = M.x, Y = M.y, HP = M.hp, DEAD = M.dead, VX = M.vx, VY = M.vy, FL = M.flash, TY = M.type;
@@ -128,21 +129,12 @@ export function explode(G, x, y) {
     }
   }
 
-  // 큰 한방이면 아이템이 떨어질 수 있음(시드 난수 → 공정)
-  const IC = CONFIG.items;
-  if (kills >= IC.dropMinKills) {
-    const r = G.rng(), a = G.rng() * Math.PI * 2;
-    const ix = x + Math.cos(a) * R * 0.4, iy = y + Math.sin(a) * R * 0.4;
-    if (r < IC.potionChance) dropItem(ITEM_POTION, ix, iy);
-    else if (r < IC.potionChance + IC.magnetChance) dropItem(ITEM_MAGNET, ix, iy);
-  }
-
-  // 법사: 폭발 순간 반경 안이면 대시 중이어도 피해(쉴드는 1회 막음). 반경 바로 바깥이면 아슬아슬 보너스
+  // 법사: 폭발 순간 반경 안이면 대시 중이어도 한 방에 죽음(쉴드·무적의 별만 막음). 반경 바로 바깥이면 아슬아슬 보너스
   const p = G.player;
-  if (p.alive) {
+  if (p.alive && !noSelf) {
     const dx = p.x - x, dy = p.y - y, d = Math.sqrt(dx * dx + dy * dy);
     if (d < R) {
-      G.hurtPlayer(MC.selfDamage, 'meteor');
+      G.hurtPlayer(0, 'meteor');
     } else if (d < R + CONFIG.mana.nearMissBand) {
       G.mana = Math.min(CONFIG.mana.max, G.mana + CONFIG.mana.nearMissBonus);
       G.events.push({ type: 'nearMiss' });
@@ -159,7 +151,7 @@ export function explode(G, x, y) {
 
   G.awardKills(kills, expSum, true, bossKills);
   explosionFx(G, x, y, R, kills);
-  if (G.fire) addFire(x, y, R);
+  if (G.fire && !noSelf) addFire(x, y, R);
   G.events.push({ type: 'explosion', x, y, kills });
 }
 

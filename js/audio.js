@@ -1,6 +1,6 @@
 // 효과음: Web Audio 합성(음원 파일 없음). 첫 터치 이후에만 재생. 동시 재생 최대 8개.
 let ctx = null, master = null, noiseBuf = null;
-let enabled = true, voices = 0;
+let enabled = true, voices = 0, lastKill = 0, lastBolt = 0;
 const MAX_VOICES = 8;
 
 export function unlockAudio() {
@@ -96,13 +96,45 @@ export const sfx = {
   charge() { tone('sawtooth', 90, 180, 0.35, 0.18); noise('lowpass', 400, 1200, 1, 0.4, 0.2); },
   summon() { tone('triangle', 300, 120, 0.5, 0.12); tone('triangle', 450, 180, 0.5, 0.08, 0.1); },
   fireball() { noise('bandpass', 300, 1600, 2, 0.35, 0.25); },
-  item(kind) {
-    if (kind === 'chest') [523, 784, 1047, 1568].forEach((f, i) => tone('square', f, f, 0.1, 0.07, i * 0.06));
-    else if (kind === 'potion') { tone('sine', 500, 900, 0.2, 0.12); tone('sine', 700, 1200, 0.2, 0.08, 0.08); }
-    else tone('square', 300, 1200, 0.25, 0.08);
+  /** 아이템 줍기: 크고 경쾌하게(등급이 높을수록 화려하게) */
+  item(kind, rarity) {
+    if (kind === 'chest') { [523, 784, 1047, 1568, 2093].forEach((f, i) => tone('square', f, f, 0.12, 0.12, i * 0.06)); return; }
+    const notes = rarity === 'legend' ? [784, 988, 1175, 1568, 1976] : rarity === 'rare' ? [659, 880, 1109, 1319] : [784, 1047, 1319];
+    notes.forEach((f, i) => tone('square', f, f, 0.09, 0.13, i * 0.05));
+    tone('triangle', notes[0] / 2, notes[0], 0.25, 0.16);
+  },
+  heal() { tone('triangle', 880, 880, 0.07, 0.12); tone('triangle', 1320, 1320, 0.12, 0.12, 0.07); },
+  learn() { [262, 392, 523, 659, 784, 1047].forEach((f, i) => tone('square', f, f, 0.18, 0.1, i * 0.09)); noise('highpass', 2000, 8000, 0.7, 1.2, 0.12, 0.1); },
+  /** 킬 소리: 연속 콤보가 높을수록 음이 올라감(초당 최대 14번) */
+  kill(chain) {
+    const now = ctx ? ctx.currentTime : 0;
+    if (now - lastKill < 0.07) return;
+    lastKill = now;
+    const f = 330 * Math.pow(2, Math.min(2.5, Math.log2(1 + chain) * 0.32));
+    tone('square', f, f * 1.25, 0.05, 0.05);
+  },
+  bolt() {
+    const now = ctx ? ctx.currentTime : 0;
+    if (now - lastBolt < 0.12) return;
+    lastBolt = now;
+    tone('triangle', 1400, 700, 0.05, 0.025);
   },
   nearMiss() { tone('triangle', 1200, 1800, 0.15, 0.1); },
 };
 
 /** 미리보기용(상점): 모양 효과음 */
 export function previewExplosion(skin) { sfx.explosion(skin, 200); }
+
+// ------------------------------------------------------------ 무적의 별 전용 음악(짧은 반복 아르페지오)
+let starTimer = 0, starStep = 0;
+const STAR_NOTES = [523, 659, 784, 1047, 784, 659, 587, 740, 880, 1175, 880, 740];
+export function starMusic(on) {
+  if (on && !starTimer) {
+    starStep = 0;
+    starTimer = setInterval(() => {
+      const f = STAR_NOTES[starStep++ % STAR_NOTES.length];
+      tone('square', f, f, 0.09, 0.06);
+      if (starStep % 2) tone('triangle', f / 2, f / 2, 0.12, 0.08);
+    }, 105);
+  } else if (!on && starTimer) { clearInterval(starTimer); starTimer = 0; }
+}

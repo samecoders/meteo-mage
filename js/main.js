@@ -7,26 +7,30 @@ import { buildAtlas } from './render/atlas.js';
 import { Renderer } from './render/gl.js';
 import { batches, allocBatches, fillMobs, fillDecor, fillTop, fillUnder, fillParticlesBatch, fillOver, emitVisuals } from './render/sprites.js';
 import { updateEffects, shake, setQualityLevel, getQualityLevel, setSpriteRects, addSpriteFx } from './render/effects.js';
-import { G, initSim, newGame, tick, queueTap } from './game.js';
+import { G, initSim, newGame, tick, queueTap, learnMeteor, resumePush } from './game.js';
 import { M } from './sim/mobs.js';
+import { dropItem, applyItem, KIND } from './items.js';
+import { autoplay, startAutoplay, autoplayStep } from './autoplay.js';
 import { input, initInput, updateInput, resetInput } from './input.js';
 import { updatePlayer } from './player.js';
 import { tryDash, dashPreview } from './dash.js';
 import { buyShield, buyDash } from './shop.js';
-import { cardsFor, applyCard } from './upgrade.js';
-import { sfx, unlockAudio, setSound, suspendAudio } from './audio.js';
+import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
+import { sfx, unlockAudio, setSound, suspendAudio, starMusic } from './audio.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
 import { submitScore } from './ranking.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
 const BENCH_N = parseBench();
-const DEBUG = params.get('debug') === '1' || BENCH_N > 0;
+const AUTOPLAY = params.get('autoplay') === '1';
+const DEBUG = params.get('debug') === '1' || BENCH_N > 0 || AUTOPLAY;
 
 const view = {
   cssW: 1, cssH: 1, dpr: 1, devW: 1, devH: 1,
   iw: 360, ih: 640, curShort: CONFIG.view.baseShort,
   camX: 0, camY: 0, left: 0, top: 0,
+  leadX: 0, leadY: 0,
 };
 
 let renderer = null, atlas = null, canvas = null;
@@ -72,13 +76,13 @@ function startGame() {
   unlockAudio();
   newGame({ skin: save.data.skinEquipped, hero: save.data.heroEquipped, bench: BENCH_N > 0, benchCount: BENCH_N });
   if (BENCH_N > 0) setupBench(G, BENCH_N);
-  view.camX = G.player.x; view.camY = G.player.y;
+  view.camX = G.player.x; view.camY = G.player.y; view.leadX = 0; view.leadY = 0;
   view.curShort = G.zoomShort;
   acc = 0; alpha = 0;
   resetInput();
   UI.showScreen(null);
   UI.showHud(true);
-  if (!save.data.tutorialDone && !G.bench) {
+  if (!save.data.tutorialDone && !G.bench && !AUTOPLAY) {
     // 안내 중에는 게임이 멈춰 있음(시간·몹 생성 없음). 끝나거나 건너뛰면 그때부터 시작
     G.mode = 'intro';
     UI.startTutorial(() => {
@@ -91,6 +95,8 @@ function startGame() {
 function toTitle() {
   G.mode = 'title';
   UI.stopTutorial();
+  UI.hideLearn();
+  starMusic(false);
   UI.showHud(false);
   UI.showScreen('title');
 }
@@ -108,22 +114,47 @@ function resume() {
   UI.showScreen(null);
 }
 
+/** 레벨업: 카드 2장(또는 특수 3장) — 고르면 즉시 재개하고 주변 몹을 밀어냄. 레벨 5는 메테오 습득 연출 */
 function showLevelUp() {
-  const level = G.levelQueue[0];          // 0 = 보물상자 보너스 카드
+  if (!G.levelQueue.length) { finishLevelUps(); return; }
+  const level = G.levelQueue[0];
+  if (isLearnLevel(level)) { showLearn(); return; }
   const { special, cards } = cardsFor(G, level);
+  if (!cards.length) { G.levelQueue.shift(); showLevelUp(); return; }
   sfx.levelUp();
-  if (level > 0) addSpriteFx(0, 4, SPR.fx_levelup, 1, 0.9, 0, -10, false, true);
+  addSpriteFx(0, 4, SPR.fx_levelup, 1, 0.9, 0, -10, false, true);
   UI.showLevelUp(level, special, cards, (id) => {
     applyCard(G, id);
     G.levelQueue.shift();
     sfx.click();
-    if (G.levelQueue.length) showLevelUp();
-    else { UI.showScreen(null); G.mode = 'play'; last = performance.now(); }
+    showLevelUp();
+  });
+}
+function finishLevelUps() {
+  UI.showScreen(null);
+  resumePush();
+  G.mode = 'play'; last = performance.now(); acc = 0;
+}
+/** 레벨 5: 게임이 잠깐 멈추고 하늘에서 빛 + "메테오 습득!" 3초 안내. 마력 링은 가득 찬 채로 시작 */
+function showLearn() {
+  G.mode = 'learn';
+  learnMeteor();
+  UI.showScreen(null);
+  sfx.learn();
+  vibrate(80);
+  worldToScreen(G.player.x, G.player.y, tmp2);
+  UI.showLearn(tmp2[0], () => {
+    if (G.mode !== 'learn') return;
+    G.levelQueue.shift();
+    UI.manaFullFx();
+    if (G.levelQueue.length) { G.mode = 'levelup'; showLevelUp(); }
+    else finishLevelUps();
   });
 }
 
 async function gameOver() {
   UI.stopTutorial();
+  starMusic(false);
   const s = G.stats;
   const rec = {
     kills: s.kills, surviveSec: Math.floor(G.time), level: s.level, maxCombo: s.maxCombo,
@@ -169,15 +200,18 @@ function processEvents() {
       case 'fireball': sfx.fireball(); break;
       case 'fireHit': addSpriteFx(e.x, e.y, SPR.fx_explosion, 1, 0.3, 0, 0); break;
       case 'item':
-        sfx.item(e.kind);
-        UI.toast(t('item.' + e.kind), e.kind === 'chest' ? 'gold' : 'mana');
+        sfx.item(e.kind, e.rarity);
+        UI.toast(t('item.' + e.kind + '.name'), e.rarity === 'legend' ? 'legend' : e.rarity === 'rare' ? 'rare' : e.kind === 'chest' ? 'gold' : 'mana', e.kind);
         addSpriteFx(e.x, e.y, SPR.fx_hit, 1, 0.3, 0, -40);
-        if (e.kind !== 'chest') vibrate(30);
+        vibrate(e.rarity === 'legend' ? 80 : 30);
         break;
+      case 'heal': sfx.heal(); break;
+      case 'kill': if (e.k > 0) sfx.kill(e.n); break;
+      case 'bolt': sfx.bolt(); break;
       case 'nearMiss': UI.toast(t('nearMiss'), 'mana'); sfx.nearMiss(); break;
       case 'shieldBreak': UI.toast(t('shield.broken'), 'mana'); sfx.shield(); vibrate(60); break;
       case 'death': sfx.death(); vibrate(250); break;
-      case 'hurt': sfx.hurt(); vibrate(40); UI.hurtFx(); break;
+      case 'hurt': sfx.hurt(); vibrate(60); UI.hurtFx(); break;
       case 'gameover': gameOver(); break;
     }
   }
@@ -218,7 +252,13 @@ function frame(now) {
   if (G.bench && G.mode === 'play') benchInput(G, input, dt);
 
   let ticks = 0, simMs = 0, effDt = 0;
-  if (G.mode === 'play') {
+  if (AUTOPLAY && autoplay.on) {
+    // 자동 플레이: 게임 프레임을 여러 번 돌려 빨리 감기(렌더는 지금 상태만)
+    const t0 = performance.now();
+    UI.setAutoplayText(autoplayStep(CONFIG.bench.autoplaySpeed));
+    simMs = performance.now() - t0;
+    effDt = dt; alpha = 1;
+  } else if (G.mode === 'play') {
     if (G.hitstop > 0) G.hitstop -= dt;          // 의도된 짧은 멈춤
     else {
       effDt = dt;
@@ -239,11 +279,17 @@ function frame(now) {
   }
   processEvents();
 
-  // 카메라: 법사를 부드럽게 따라감, 줌은 천천히
+  // 카메라: 법사를 부드럽게 따라감 + 이동 방향으로 살짝 앞을 더 보여 줌(lead), 줌은 천천히
   const p = G.player;
   if (G.mode === 'play' || G.mode === 'over') {
-    const k = 1 - Math.exp(-CONFIG.view.camLerp * dt);
-    view.camX += (p.x - view.camX) * k; view.camY += (p.y - view.camY) * k;
+    const V = CONFIG.view, k = 1 - Math.exp(-V.camLerp * dt);
+    let lx = p.vx * V.lead, ly = p.vy * V.lead;
+    const ll = Math.hypot(lx, ly);
+    if (ll > V.leadMax) { lx *= V.leadMax / ll; ly *= V.leadMax / ll; }
+    if (!p.alive) { lx = 0; ly = 0; }
+    const kl = 1 - Math.exp(-3 * dt);
+    view.leadX += (lx - view.leadX) * kl; view.leadY += (ly - view.leadY) * kl;
+    view.camX += (p.x + view.leadX - view.camX) * k; view.camY += (p.y + view.leadY - view.camY) * k;
     const zs = CONFIG.view.zoomSpeed * dt;
     view.curShort += Math.max(-zs, Math.min(zs, G.zoomShort - view.curShort));
   }
@@ -271,7 +317,8 @@ function frame(now) {
   renderer.end();
   const renderMs = performance.now() - r0;
 
-  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
+  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro' || G.mode === 'learn') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
+  starMusic(G.mode === 'play' && G.player.alive && G.starT > 0 && !G.bench && !AUTOPLAY);
   if (ticks) simAvg = simAvg * 0.9 + (simMs / ticks) * 0.1;
   renderAvg = renderAvg * 0.9 + renderMs * 0.1;
   if (G.bench) benchFrame(frameMs, simMs, ticks, renderMs);
@@ -298,6 +345,7 @@ async function boot() {
     return;
   }
   await initI18n(save.data.settings.lang);
+  globalThis.__itemName = (k) => t('item.' + k + '.name');   // 아이템 그림이 없을 때 첫 글자용
   const assets = await loadAssets();
   atlas = buildAtlas(SPRITE_ORDER, assets.sprites);
   renderer.setAtlas(atlas);
@@ -318,12 +366,15 @@ async function boot() {
     blocked: () => G.mode !== 'play',
     onAnyPress: unlockAudio,
     onTap: (x, y) => {
-      if (G.mode !== 'play' || !G.player.alive) return;
+      if (G.mode !== 'play' || !G.player.alive || !G.meteorLearned) return;   // 레벨 4까지는 탭해도 아무 일 없음
       screenToWorld(x, y, tmp2);
       if (!queueTap(tmp2[0], tmp2[1])) { UI.manaShake(); sfx.deny(); }
     },
     onDashHold: () => {},
     onDash: () => { if (G.mode === 'play' && tryDash(G, input)) sfx.dash(); },
+    // 튕기기 대시: 이동하던 손가락을 빠르게 쓸고 뗌 → 그 방향으로
+    flickEnabled: () => save.data.settings.flickDash,
+    onFlick: (dx, dy) => { if (G.mode === 'play' && tryDash(G, input, dx, dy)) sfx.dash(); },
     onShield: () => runShop('shield'),
     onDashUp: () => runShop('dash'),
     onPause: () => { if (G.mode === 'play') pause(); else if (G.mode === 'paused') resume(); },
@@ -341,6 +392,10 @@ async function boot() {
     onSound: (on) => setSound(on),
     onQuality: () => applyQualitySetting(),
     debug: DEBUG,
+    // ?debug=1 : 아이템을 법사 옆에 바로 소환 / 레벨 올리기 / 무적
+    debugItem: (key) => { if (G.mode !== 'play') return; const p = G.player; dropItem(KIND[key], p.x + p.faceX * 60, p.y + p.faceY * 60); },
+    debugLevel: () => { if (G.mode !== 'play') return; G.addExp(G.stats.expNeed - G.stats.exp + 0.01); },
+    debugGod: (b) => { G.god = !G.god; b.style.background = G.god ? '#e04040' : ''; },
   });
 
   setupNativeApp();
@@ -353,7 +408,12 @@ async function boot() {
   requestAnimationFrame(frame);
 
   if (BENCH_N > 0) startGame();
-  else UI.showScreen(save.data.settings.nickname ? 'title' : 'nick');
+  else if (AUTOPLAY) {
+    UI.showScreen(null);
+    startAutoplay(CONFIG.bench.autoplayGames);
+    view.camX = G.player.x; view.camY = G.player.y;
+    UI.showHud(true);
+  } else UI.showScreen(save.data.settings.nickname ? 'title' : 'nick');
 }
 
 function runShop(kind) {

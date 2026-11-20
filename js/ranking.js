@@ -44,6 +44,7 @@ export async function submitScore(rec) {
       p_meteor_skin: rec.skin,
       p_hero: rec.hero || 'mage',
       p_device_id: save.data.deviceId,
+      p_season: R.season,
     });
     return { ok: true, rank: r && r.rank };
   } catch (e) {
@@ -60,8 +61,8 @@ export async function fetchTop(scope, country) {
   if (!rankingEnabled()) return localTop();
   try {
     const [rows, me] = await Promise.all([
-      rpc('get_top', { p_scope: scope, p_country: country || '', p_device_id: save.data.deviceId }),
-      rpc('get_my_rank', { p_scope: scope, p_country: country || '', p_device_id: save.data.deviceId }),
+      rpc('get_top', { p_scope: scope, p_country: country || '', p_device_id: save.data.deviceId, p_season: R.season }),
+      rpc('get_my_rank', { p_scope: scope, p_country: country || '', p_device_id: save.data.deviceId, p_season: R.season }),
     ]);
     return {
       ok: true,
@@ -76,6 +77,6 @@ export async function fetchTop(scope, country) {
 
 function localTop() {
   const s = save.data.settings;
-  const rows = save.data.records.map((r) => ({ nickname: s.nickname || '—', country: s.country, kills: r.kills, meteor_skin: r.skin, hero: r.hero || 'mage', mine: true }));
+  const rows = save.data.records.filter((r) => (r.season || 1) === R.season).map((r) => ({ nickname: s.nickname || '—', country: s.country, kills: r.kills, meteor_skin: r.skin, hero: r.hero || 'mage', mine: true }));
   return { ok: true, rows, me: rows.length ? { rank: 1, kills: rows[0].kills } : null, offline: true };
 }
