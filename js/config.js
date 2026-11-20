@@ -9,8 +9,8 @@ export const HUD_BOTTOM_FORBIDDEN = 0.4;
 
 // ---- 랭킹 서버(Supabase). 둘 중 하나라도 비어 있으면 랭킹을 끄고 내 기기 최고 기록만 보여 줌.
 // 공개 키(sb_publishable_…)만 넣는다. 비밀 키(sb_secret_…)는 절대 코드에 넣지 않는다.
-export const SUPABASE_URL = '';   // 프로젝트 URL 예: 'https://abcd1234.supabase.co'
-export const SUPABASE_KEY = '';   // 'sb_publishable_' 로 시작하는 공개 키
+export const SUPABASE_URL = 'https://rmikpqoyqklhliqndfuq.supabase.co';   // 프로젝트 URL 예: 'https://abcd1234.supabase.co'
+export const SUPABASE_KEY = 'sb_publishable_4AhzOUtIeMpRHzy1l1ZSGw_nJvJFyP7';   // 'sb_publishable_' 로 시작하는 공개 키
 export const RANKING_SEASON = 3;  // 규칙이 바뀌면 올리고 tools/spawn_cap.html 로 상한표 SQL 을 다시 만들 것
 
 export const CONFIG = {
