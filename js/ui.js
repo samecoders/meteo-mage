@@ -19,7 +19,10 @@ let settingsBack = 'title', nickBack = 'title';
 const skinIcons = {};
 const heroIcons = {};
 let UIIMG = {};
-const heroSprite = (id) => (id === 'mage' ? 'mage' : 'hero_' + id);
+const heroSprite = (id) => (CONFIG.characters[id] || CONFIG.characters.fire_mage).sprite;
+/** 캐릭터 화면에서 미리 듣는 테마곡(타이틀 음악 대신). null 이면 장면 음악 */
+let charMusic = null;
+export function musicOverride() { return current === 'shop' && shopTab === 'hero' ? charMusic : null; }
 
 const SCREENS = { title: 'scrTitle', level: 'scrLevel', pause: 'scrPause', over: 'scrOver', rank: 'scrRank', shop: 'scrShop', settings: 'scrSettings', nick: 'scrNick' };
 
@@ -162,7 +165,8 @@ export function initUI(h) {
   const click = (id, fn) => $(id).addEventListener('click', () => { unlockAudio(); sfx.click(); fn(); });
   click('tStart', () => H.start());
   click('tRank', () => { rankBack = 'title'; showScreen('rank'); });
-  click('tShop', () => showScreen('shop'));
+  click('tShop', () => { shopTab = 'meteor'; showScreen('shop'); });
+  click('tChar', () => { shopTab = 'hero'; previewSkin = null; showScreen('shop'); });
   click('tSettings', () => { settingsBack = 'title'; showScreen('settings'); });
   click('pResume', () => H.resume());
   click('pSettings', () => { settingsBack = 'pause'; showScreen('settings'); });
@@ -740,8 +744,7 @@ function renderMyBest(res) {
   box.appendChild(a); box.appendChild(b);
 }
 /** 캐릭터 아이콘: 서버 이름(fire_mage …) → 그림 */
-const SERVER_HERO_ICON = { fire_mage: 'mage', frost_witch: 'icewitch', earth_sage: 'apprentice' };
-function heroIcon(h) { return heroIcons[h] || heroIcons[SERVER_HERO_ICON[h]] || heroIcons.mage; }
+function heroIcon(h) { return heroIcons[h] || heroIcons.fire_mage; }
 
 /** 결과 화면: 다음 목표(최대 3줄) */
 export function showGoals(lines) {
@@ -757,7 +760,9 @@ function openShop() {
   $('shopBank').textContent = fmt(save.data.bank);
   for (const b of document.querySelectorAll('#shopTabs button')) b.classList.toggle('on', b.dataset.tab === shopTab);
   const isHero = shopTab === 'hero';
+  $('scrShop').querySelector('h2').textContent = t(isHero ? 'character' : 'meteorShop');
   $('shopNote').textContent = t(isHero ? 'shop.heroNote' : 'shop.note');
+  if (isHero) { const id = previewSkin && CONFIG.characters[previewSkin] ? previewSkin : save.data.heroEquipped; $('shopNote').textContent = t('char.' + id + '.desc'); charMusic = CONFIG.characters[id].theme; }
   const grid = $('shopGrid');
   grid.innerHTML = '';
   const list = isHero ? HEROES : SKINS.map((sk) => sk.id);
@@ -777,6 +782,7 @@ function openShop() {
     card.addEventListener('click', () => {
       previewSkin = id; previewT = 0;
       if (!isHero) previewExplosion(skinById(id));
+      else { $('shopNote').textContent = t('char.' + id + '.desc'); charMusic = CONFIG.characters[id].theme; }   // 고르면 그 캐릭터 테마곡
       for (const c of grid.children) c.classList.remove('sel');
       card.classList.add('sel');
     });
@@ -806,7 +812,7 @@ function drawPreview(now) {
   if (!groundPat) groundPat = c.createPattern(S.ground, 'repeat');
   c.fillStyle = groundPat; c.fillRect(0, 0, W, Hh);
   if (shopTab === 'hero') {
-    const img = S[heroSprite(previewSkin || 'mage')];
+    const img = S[heroSprite(previewSkin || 'fire_mage')];
     const x = ((previewT * 30) % (W + 80)) - 20, bob = ((previewT * 6) | 0) % 2;
     c.drawImage(img, Math.round(x - img.width / 2), Math.round(Hh * 0.5 - img.height / 2 - bob));
     const sl = S.mob_slime;

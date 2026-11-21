@@ -35,7 +35,7 @@ const RAINBOW = [22, 23, 24, 6, 12, 11, 21].map(pal);
 const TREASURE_COL = [pal(19), pal(24), pal(21)];
 const TREASURE_SPR = [SPR.chest_wood, SPR.chest_gold, SPR.altar];
 const DECOR_SPR = CONFIG.decor.kinds.map((k) => SPR[k]);
-export const HERO_SPR = { mage: SPR.mage, apprentice: SPR.hero_apprentice, pyromancer: SPR.hero_pyromancer, icewitch: SPR.hero_icewitch, necromancer: SPR.hero_necromancer };
+export const HERO_SPR = Object.fromEntries(Object.entries(CONFIG.characters).map(([k, c]) => [k, SPR[c.sprite]]));
 
 /** 몹: 보간 위치 + 화면 밖 제외 */
 export function fillMobs(V, alpha, plx) {

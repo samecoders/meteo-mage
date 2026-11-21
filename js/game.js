@@ -46,7 +46,8 @@ export const G = {
   // 연속 킬 콤보(2초 안에 이어지면 유지)
   chainN: 0, chainLast: -99,
   skin: skinById('fire'),
-  hero: 'mage',
+  hero: 'fire_mage',
+  char: null,              // CONFIG.characters[hero]
   stats: null,
   levelQueue: [], levelUpWait: 0,
   shieldBought: 0,
@@ -89,7 +90,10 @@ export function newGame(opts) {
   resetRelics(G); LURE.on = false;
   G.chainN = 0; G.chainLast = -99; G.lastRingT = -99;
   G.skin = skinById(opts.skin || 'fire');
-  G.hero = opts.hero || 'mage';
+  G.hero = CONFIG.characters[opts.hero] ? opts.hero : 'fire_mage';
+  G.char = CONFIG.characters[G.hero];
+  G.player.maxHp = G.char.hearts; G.player.hp = G.char.hearts;   // 캐릭터 시작 하트
+  M.slowMul = G.char.boltSlow || G.char.quakeSlow || 1;   // 캐릭터 둔화 배율
   G.stats = { kills: 0, maxCombo: 0, maxChain: 0, maxMobs: 0, gold: 0, level: 1, exp: 0, expNeed: expNeed(1), bossKills: 0, goldEarned: 0, dmgTaken: {}, deathBy: '', meteors: 0 };
   G.levelQueue.length = 0; G.levelUpWait = 0;
   G.shieldBought = 0; G.goldFrac = 0; G.hitstop = 0; G.dying = 0;

@@ -122,6 +122,17 @@ export function updateMeteors(G, dt) {
   }
 }
 
+/** 반경 안 살아 있는 몹에 둔화(틱 수) 표시 */
+function slowMobs(x, y, radius, ticks) {
+  const g = grid, cols = g.cols, start = g.start, items = g.items, r2 = radius * radius, SL = M.slow;
+  const c0 = cellX(x - radius), c1 = cellX(x + radius), r0 = cellY(y - radius), r1 = cellY(y + radius);
+  for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+    const c = cy * cols + cx;
+    for (let k = start[c], e = start[c + 1]; k < e; k++) { const i = items[k]; const dx = M.x[i] - x, dy = M.y[i] - y; if (dx * dx + dy * dy < r2) SL[i] = ticks; }
+  }
+  addRing(x, y, radius * 0.6, radius, 0.7, pal(18), 2, 4);   // 땅이 울림(그림만)
+}
+
 /** 중력: 반경 안 몹을 중심으로 조금씩 끌어당김(격자 칸만) */
 export function pullMobs(x, y, radius, step) {
   const g = grid, cols = g.cols, start = g.start, items = g.items, r2 = radius * radius;
@@ -237,6 +248,8 @@ export function explode(G, x, y, Rr, powerR, noSelf, small) {
   }
 
   G.awardKills(kills, expSum, true, bossKills);
+  // 대지의 현자: 폭발 후 2초간 반경 1.5배 안 몹 40% 느려짐
+  if (!noSelf && G.char && G.char.quakeSlow) slowMobs(x, y, R * G.char.quakeRange, Math.round(G.char.quakeTime * CONFIG.sim.tickRate));
   explosionFx(G, x, y, R, kills, small);
   if (G.fire && !noSelf) addFire(x, y, R);
   G.events.push({ type: 'explosion', x, y, kills, small: !!small });

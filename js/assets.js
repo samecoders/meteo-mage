@@ -9,7 +9,7 @@ import { SKINS } from './skins.js';
 export const SPRITE_ORDER = [
   ...CONFIG.mobs.types.map((t) => t.sprite),
   ...CONFIG.boss.kinds.map((k) => k.sprite),
-  'mage', 'hero_apprentice', 'hero_pyromancer', 'hero_icewitch', 'hero_necromancer',
+  'mage', 'mage_frost', 'mage_earth',
   'meteor_fire', 'meteor_ice', 'meteor_poison', 'meteor_lightning', 'meteor_dark', 'meteor_gold',
   'fx_explosion', 'fx_hit', 'fx_levelup',
   'item_expgem', 'item_coin',
@@ -189,10 +189,8 @@ for (const sk of SKINS) {
 
 // 주인공 모습: 법사 그림의 옷 색만 바꿈 (9 = 어두운 옷, 10 = 밝은 옷)
 function recolor(b, map) { for (let i = 0; i < b.d.length; i++) if (map[b.d[i]] !== undefined) b.d[i] = map[b.d[i]]; return b; }
-GEN.hero_apprentice = () => recolor(GEN.mage(), { 9: 25, 10: 26 });
-GEN.hero_pyromancer = () => recolor(GEN.mage(), { 9: 3, 10: 22 });
-GEN.hero_icewitch = () => recolor(GEN.mage(), { 9: 11, 10: 12 });
-GEN.hero_necromancer = () => recolor(GEN.mage(), { 9: 1, 10: 20 });
+GEN.mage_frost = () => recolor(GEN.mage(), { 9: 11, 10: 12, 17: 14 });   // 서리 마녀: 하늘색 옷
+GEN.mage_earth = () => recolor(GEN.mage(), { 9: 25, 10: 26, 12: 6 });    // 대지의 현자: 초록 옷
 
 // 이미지가 없을 때 쓰는 단순 몹 도형: 몸통 색 c0(밝음)·c1(어두움), 눈 색 eye
 function blob(w, h, c0, c1, eye, extra) {

@@ -19,7 +19,7 @@ export function createPlayer() { const p = {}; resetPlayer(p); return p; }
 /** 지금 최고 이동 속도(신속의 장화·무적의 별 포함) */
 export function playerSpeed(G) {
   const p = G.player, IC = CONFIG.items;
-  return CONFIG.player.speed * (1 + IC.bootsPct * p.boots) * (G.starT > 0 ? 1 + IC.starSpeed : 1);
+  return CONFIG.player.speed * (G.char ? G.char.speed : 1) * (1 + IC.bootsPct * p.boots) * (G.starT > 0 ? 1 + IC.starSpeed : 1);
 }
 
 /** 프레임마다: 0.08초 안에 최고 속도, 손을 떼면 바로 멈춤(밀리지 않음) */

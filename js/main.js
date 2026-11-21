@@ -431,7 +431,7 @@ function updateMusic(now) {
   if (!audioReady() || G.bench || AUTOPLAY) return;
   const A = CONFIG.audio, inGame = !!IN_GAME[G.mode];
   let want = currentMusic();
-  if (G.mode === 'title') want = 'title';
+  if (G.mode === 'title') want = UI.musicOverride() || 'title';   // 캐릭터 화면: 고른 캐릭터 테마
   else if (inGame) {
     if (G.starT > 0 && G.player.alive) want = 'star';           // 무적의 별: 끝나면 이전 곡으로
     else {

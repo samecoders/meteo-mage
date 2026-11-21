@@ -207,6 +207,7 @@ const DRUM = {
 // ------------------------------------------------------------------ 악보 → 녹음
 const RATE = 24000;   // 내장 음악 녹음 표본율(가볍게)
 async function renderScore(name, mainCtx) {
+  if (!SCORES[name]) name = (A.tracks[name] && A.tracks[name].fallback) || 'field';   // 악보가 없는 곡: 비슷한 내장 곡
   const S = SCORES[name];
   const spb = 60 / S.bpm, bars = S.bars || S.chords.length, len = bars * 4 * spb;
   const tail = S.loop ? 1.6 : 2.2;

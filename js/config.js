@@ -418,9 +418,17 @@ export const CONFIG = {
     prices: { fire: 0, ice: 2000, poison: 5000, lightning: 10000, dark: 20000, gold: 40000 },
   },
 
-  // ------------------------------------------------------------ 주인공 모습(꾸미기 전용 — 능력치 완전히 같음) 가격
+  // ------------------------------------------------------------ 캐릭터 3종(보관 골드로 해금, 판을 넘어 남음)
+  // 낙하 시간 공식(탈출 가능)은 캐릭터 이동 속도로 계산. 이동 속도는 항상 가장 빠른 몹(123)보다 빠름
   heroes: {
-    prices: { mage: 0, apprentice: 1500, pyromancer: 4000, icewitch: 8000, necromancer: 16000 },
+    prices: { fire_mage: 0, frost_witch: 1500, earth_sage: 3000 },
+  },
+  characters: {
+    fire_mage:   { sprite: 'mage',       speed: 1.00, hearts: 3, theme: 'hero_fire' },   // 불꽃 법사(기본)
+    frost_witch: { sprite: 'mage_frost', speed: 1.08, hearts: 2, theme: 'hero_frost',
+      boltSlow: 0.7, boltSlowTime: 1 },             // 마법탄에 맞은 몹 1초간 30% 느려짐
+    earth_sage:  { sprite: 'mage_earth', speed: 0.92, hearts: 4, theme: 'hero_earth',
+      quakeSlow: 0.6, quakeTime: 2, quakeRange: 1.5 },   // 메테오 폭발 후 2초간 반경 1.5배 안 몹 40% 느려짐
   },
 
   // ------------------------------------------------------------ 이펙트 상한 [저, 중, 고]
@@ -466,10 +474,8 @@ export const CONFIG = {
   // faceLeft: 그림이 왼쪽을 보고 있음(좌우 반전 기준을 뒤집음)
   sprites: {
     mage:             { file: 'mage.png',             size: [24, 24] },
-    hero_apprentice:  { file: 'hero_apprentice.png',  size: [24, 24] },
-    hero_pyromancer:  { file: 'hero_pyromancer.png',  size: [24, 24] },
-    hero_icewitch:    { file: 'hero_icewitch.png',    size: [24, 24] },
-    hero_necromancer: { file: 'hero_necromancer.png', size: [24, 24] },
+    mage_frost:       { file: 'mage_frost.png',       size: [24, 24], fit: true },   // 서리 마녀(없으면 법사 색 바꿈)
+    mage_earth:       { file: 'mage_earth.png',       size: [24, 24], fit: true },   // 대지의 현자
     mob_slime:        { file: 'mob_slime.png',        size: [12, 12] },
     mob_bat:          { file: 'mob_bat.png',          size: [14, 10] },
     mob_wolf:         { file: 'mob_wolf.png',         size: [16, 16] },
@@ -568,6 +574,15 @@ export const CONFIG = {
       field:  { file: 'bgm_field.mp3',  loop: true,  loopStart: 0, loopEnd: 0 },
       battle: { file: 'bgm_battle.mp3', loop: true,  loopStart: 0, loopEnd: 0 },
       star:   { file: 'bgm_star.mp3',   loop: true,  loopStart: 0, loopEnd: 0 },
+      // 캐릭터 테마·사건 곡(파일이 없으면 fallback 의 내장 곡)
+      hero_fire:  { file: 'bgm_hero_fire.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
+      hero_frost: { file: 'bgm_hero_frost.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
+      hero_earth: { file: 'bgm_hero_earth.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
+      wolf:   { file: 'bgm_wolf.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
+      golem:  { file: 'bgm_golem.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
+      siege:  { file: 'bgm_siege.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
+      boss:   { file: 'bgm_boss.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
+      ruin:   { file: 'bgm_ruin.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
       meteor:   { file: 'jingle_meteor.mp3',   loop: false },
       levelup:  { file: 'jingle_levelup.mp3',  loop: false },
       gameover: { file: 'jingle_gameover.mp3', loop: false },

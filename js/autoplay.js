@@ -42,9 +42,9 @@ function resolveLevelUps() {
 }
 
 /** 한 판 시작. skill: 0~1 (반응 속도) */
-export function startBotGame({ seed = 1, skill = 0.8 } = {}) {
+export function startBotGame({ seed = 1, skill = 0.8, hero = 'fire_mage' } = {}) {
   if (!inited) { if (!M.x) initSim(CONFIG.sim.maxMobs); inited = true; }
-  newGame({ seed });
+  newGame({ seed, hero });
   return {
     seed, skill, f: 0, inp: { mx: 0, my: 0, dashHeld: false }, lx: 1, ly: 0,
     thinkEvery: Math.max(1, Math.round(6 - skill * 4)), meteors: 0, dashes: 0, hits: 0, items: 0,
@@ -89,8 +89,8 @@ export function botResult(st) {
 }
 
 /** 화면 없이 한 판 전체 */
-export function runGame({ seed = 1, maxSec = 900, skill = 0.8 } = {}) {
-  const st = startBotGame({ seed, skill });
+export function runGame({ seed = 1, maxSec = 900, skill = 0.8, hero = 'fire_mage' } = {}) {
+  const st = startBotGame({ seed, skill, hero });
   const frames = maxSec * 60;
   for (let f = 0; f < frames; f++) if (botFrame(st)) break;
   return botResult(st);

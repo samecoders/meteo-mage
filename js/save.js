@@ -22,8 +22,8 @@ function defaults() {
     records: [],             // 내 기기 기록 상위 20개
     skinsOwned: ['fire'],
     skinEquipped: 'fire',
-    heroesOwned: ['mage'],
-    heroEquipped: 'mage',
+    heroesOwned: ['fire_mage'],   // 해금한 캐릭터
+    heroEquipped: 'fire_mage',    // 마지막으로 고른 캐릭터
     tutorialDone: false,
     settings: {
       lang: '',
@@ -61,8 +61,8 @@ function sanitize(raw) {
   }
   if (isStr(raw.skinEquipped) && d.skinsOwned.includes(raw.skinEquipped)) d.skinEquipped = raw.skinEquipped;
   if (Array.isArray(raw.heroesOwned)) {
-    const h = raw.heroesOwned.filter(isStr);
-    if (!h.includes('mage')) h.unshift('mage');
+    const h = raw.heroesOwned.filter((x) => isStr(x) && CONFIG.characters[x]);   // 예전 꾸미기 주인공은 버림
+    if (!h.includes('fire_mage')) h.unshift('fire_mage');
     d.heroesOwned = h;
   }
   if (isStr(raw.heroEquipped) && d.heroesOwned.includes(raw.heroEquipped)) d.heroEquipped = raw.heroEquipped;

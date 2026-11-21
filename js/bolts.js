@@ -85,7 +85,7 @@ export function updateBolts(G, dt) {
   if (BT.n === 0) return;
   const g = grid, cols = g.cols, start = g.start, items = g.items;
   const X = M.x, Y = M.y, HP = M.hp, DEAD = M.dead, TY = M.type, FL = M.flash;
-  const dmg = C.damage, br = C.radius;
+  const dmg = C.damage, br = C.radius, slowTicks = G.char && G.char.boltSlow ? Math.round(G.char.boltSlowTime * CONFIG.sim.tickRate) : 0;
   let kills = 0, expSum = 0;
   for (let i = 0; i < BT.n; i++) {
     BT.px[i] = BT.x[i]; BT.py[i] = BT.y[i];
@@ -105,6 +105,7 @@ export function updateBolts(G, dt) {
           const dx = X[m] - bx, dy = Y[m] - by, r = RADIUS[TY[m]] + br;
           if (dx * dx + dy * dy > r * r) continue;
           HP[m] -= BT.gen[i] ? dmg * RL.boltSplitDamage : dmg; FL[m] = CONFIG.mobs.flashTicks;
+          if (slowTicks) M.slow[m] = slowTicks;   // 서리 마녀: 맞은 몹 1초 둔화
           if (HP[m] <= 0) { DEAD[m] = 2; kills++; expSum += EXP[TY[m]]; }
           hit = true;
           break;
