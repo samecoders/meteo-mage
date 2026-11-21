@@ -370,6 +370,10 @@ export function loadTrack(name) {
         return tr.loop && !(tr.loopEnd > 0) && !(tr.loopStart > 0) ? autoLoop(ctx, trimmed) : trimmed;
       }
     } catch (e) { /* 파일 없음 → 내장 */ }
+    if (tr.fallbackTrack && A.tracks[tr.fallbackTrack]) {   // 다른 곡 파일로 대신(예: 강령술사 테마 없으면 bgm_ruin)
+      M.source[name] = 'fallback:' + tr.fallbackTrack;
+      return loadTrack(tr.fallbackTrack);
+    }
     M.source[name] = 'built-in';
     return renderScore(name, ctx);
   })();

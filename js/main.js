@@ -19,12 +19,13 @@ import { cardsFor, applyCard, isLearnLevel, cardPct } from './upgrade.js';
 import { sfx, unlockAudio, setSound, suspendAudio, setVolumes, setMusicScene, duckMusic, playMusic, playJingle, preloadMusic, audioReady, setOnUnlock } from './audio.js';
 import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
-import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
-import { HEROES, heroPrice, ownsHero } from './shop.js';
+import { submitScore, startPendingLoop, peekTop } from './ranking.js';
+import { HEROES, heroPrice, ownsHero, ownsSkin } from './shop.js';
+import { SKINS, skinPrice } from './skins.js';
 import { spawnTreasure, treasureTargets, siege, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
 import { relicChoices, applyRelic, wouldResonate, RELIC_KEYS } from './relics.js';
 import { triggerEvent } from './events.js';
-import { killFraction, mobHpNow } from './meteor.js';
+import { killFraction, mobHpNow, killTarget, typesNear } from './meteor.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -191,16 +192,21 @@ function deathCauseText() {
 }
 
 /** 결과 화면 다음 목표: 내 최고 기록까지 / 캐릭터 해금까지 / 이번 주 10위까지 */
-function goalLines(rec, prevBest, weekTop) {
-  const out = [];
-  if (prevBest && rec.kills < prevBest.kills) out.push(t('goal.best', { n: fmt(prevBest.kills - rec.kills) }));
-  const next = HEROES.filter((h) => !ownsHero(h)).sort((a, b) => heroPrice(a) - heroPrice(b))[0];
-  if (next) {
-    const need = heroPrice(next) - save.data.bank;
-    out.push(need > 0 ? t('goal.hero', { name: t('hero.' + next), n: fmt(need) }) : t('goal.heroReady', { name: t('hero.' + next) }));
-  }
-  if (weekTop && weekTop.length >= 10 && rec.kills < weekTop[9].kills) out.push(t('goal.week10', { n: fmt(weekTop[9].kills - rec.kills) }));
-  return out;
+/**
+ * 결과 화면 다음 목표: 최대 2개, 가까운 것부터(남은 양 ÷ 목표의 비율이 작은 순).
+ * 후보: 내 최고 기록까지 / 이번 주 10위까지(랭킹 캐시가 있을 때만) / 다음 캐릭터 해금까지 / 다음 메테오 모양까지.
+ * 골드 목표는 보관 골드 진행률 막대(pct)도 함께
+ */
+function goalLines(rec, prevBest) {
+  const c = [], bank = save.data.bank;
+  if (prevBest && rec.kills < prevBest.kills) c.push({ r: 1 - rec.kills / prevBest.kills, text: t('goal.best', { n: fmt(prevBest.kills - rec.kills) }) });
+  const wk = peekTop('week', null, 10);
+  if (wk && wk.rows.length >= 10 && rec.kills < wk.rows[9].kills) c.push({ r: 1 - rec.kills / wk.rows[9].kills, text: t('goal.week10', { n: fmt(wk.rows[9].kills - rec.kills) }) });
+  const hero = HEROES.filter((h) => !ownsHero(h)).sort((a, b) => heroPrice(a) - heroPrice(b))[0];
+  if (hero) { const p = heroPrice(hero); c.push({ r: Math.max(0, p - bank) / p, pct: Math.min(1, bank / p), text: bank >= p ? t('goal.heroReady', { name: t('hero.' + hero) }) : t('goal.hero', { name: t('hero.' + hero), n: fmt(p - bank) }) }); }
+  const skin = SKINS.filter((s) => !ownsSkin(s.id)).sort((a, b) => skinPrice(a.id) - skinPrice(b.id))[0];
+  if (skin) { const p = skinPrice(skin.id); c.push({ r: Math.max(0, p - bank) / p, pct: Math.min(1, bank / p), text: bank >= p ? t('goal.skinReady', { name: t('skin.' + skin.id) }) : t('goal.skin', { name: t('skin.' + skin.id), n: fmt(p - bank) }) }); }
+  return c.sort((a, b) => a.r - b.r).slice(0, 2);
 }
 
 async function gameOver() {
@@ -218,7 +224,8 @@ async function gameOver() {
   save.write();
   UI.showHud(false);
   UI.showGameOver(rec, bankAdd, isBest, deathCauseText(), G.relics.slice());
-  UI.showGoals(goalLines(rec, prevBest, null));
+  UI.showGoals(goalLines(rec, prevBest));
+  UI.showUnlockReady();
   if (G.bench) return;
   const st = save.data.settings;
   if (!st.nickname) { UI.setRankStatus({ ok: false, noNick: true }); return; }
@@ -226,10 +233,7 @@ async function gameOver() {
   const r = await submitScore({ ...rec, nickname: st.nickname, country: st.country || 'XX' });
   if (G.mode !== 'over') return;                       // 이미 다시 시작함
   UI.setRankStatus(r);
-  if (r.ok) {
-    const wk = await fetchTop('week', null, 10).catch(() => null);
-    if (G.mode === 'over' && wk && !wk.offline) UI.showGoals(goalLines(rec, prevBest, wk.rows));
-  }
+  if (r.ok && G.mode === 'over') UI.showGoals(goalLines(rec, prevBest));   // 제출 뒤 다시(랭킹 캐시가 생겼을 수 있음)
 }
 
 function vibrate(ms) { if (save.data.settings.vibrate && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* */ } } }
@@ -531,6 +535,7 @@ async function boot() {
     dashUp: () => { if (input.dashHeld) { input.dashHeld = false; if (G.mode === 'play' && tryDash(G, input)) sfx.dash(); } },
     dashCancel: () => { input.dashHeld = false; },
     meteor: () => fireMeteor(),
+    onUnlock: () => playJingle('relic'),
     onSound: (on) => setSound(on),
     onVolume: () => setVolumes(save.data.settings.musicVolume, save.data.settings.sfxVolume),
     onQuality: () => applyQualitySetting(),
@@ -546,6 +551,10 @@ async function boot() {
     debugRelic: (key) => { if (G.mode === 'play') applyRelic(G, key); },
     debugRelicChoice: () => { if (G.mode === 'play') { G.relicQueue.push('normal'); } },
     debugEvent: (k) => { if (G.mode === 'play') triggerEvent(G, k); },
+    // 캐릭터·메테오 모양 바로 바꿔 새 판(시험용, 저장하지 않음)
+    debugHero: (id) => { save.data.heroEquipped = id; startGame(); },
+    debugSkin: (id) => { save.data.skinEquipped = id; startGame(); },
+    heroKeys: Object.keys(CONFIG.characters), skinKeys: Object.keys(CONFIG.skins.prices),
     relicKeys: RELIC_KEYS,
     // 레벨업 카드 예상 효과: 범위 → 면적 +32%, 위력 → '골렘 처치 범위 62% → 81%'
     // 범위·위력 카드 설명의 숫자를 이번 증가율로(같은 카드를 거듭 고르면 줄어듦)
@@ -559,11 +568,11 @@ async function boot() {
       if (id === 'range') return ' ' + t('card.range.extra', { n: Math.round(((1 + cardPct(G, 'range')) ** 2 - 1) * 100) });
       if (id !== 'power') return '';
       const P = G.meteorPower, P2 = P * (1 + cardPct(G, 'power'));
-      for (const key of ['golem', 'darkknight', 'orc', 'skeleton', 'goblin', 'mushroom', 'slime', 'wolf']) {   // 단단한 몹부터: 처치 범위가 달라지는 첫 몹
-        const hp = mobHpNow(key), a = killFraction(hp, P), b = killFraction(hp, P2);
-        if (b > a + 0.005) return ' ' + t('card.power.extra', { mob: t('mob.' + key), a: Math.round(a * 100), b: Math.round(b * 100) });
-      }
-      return '';
+      // 점선 원과 같은 대상: 지금 법사 주변(메테오 반경 안)에 있는 몹 중 처치 범위가 넓어지는 가장 단단한 종류
+      const tt = killTarget(typesNear(G.player.x, G.player.y, G.meteorRadius * 1.5), P, P2);
+      if (tt < 0) return '';
+      const key = CONFIG.mobs.types[tt].key, hp = mobHpNow(key);
+      return ' ' + t('card.power.extra', { mob: t('mob.' + key), a: Math.round(killFraction(hp, P) * 100), b: Math.round(killFraction(hp, P2) * 100) });
     },
   });
 

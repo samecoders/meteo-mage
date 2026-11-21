@@ -95,7 +95,7 @@ export function newGame(opts) {
   G.hero = CONFIG.characters[hid] ? hid : 'mage';
   G.char = CONFIG.characters[G.hero];
   G.player.maxHp = G.char.hearts; G.player.hp = G.char.hearts;   // 캐릭터 시작 하트
-  M.slowMul = G.char.frostSlow || 1;   // 캐릭터 둔화 배율(얼음 마녀 서리 발자국)
+  M.slowMul = G.char.frostSlow || (G.skin.id === 'ice' ? CONFIG.skins.perks.ice.slow : 1);   // 둔화 배율(얼음 마녀 서리 발자국 / 얼음 혜성)
   applyCharStart();
   G.stats = { kills: 0, maxCombo: 0, maxChain: 0, maxMobs: 0, gold: 0, level: 1, exp: 0, expNeed: expNeed(1), bossKills: 0, goldEarned: 0, dmgTaken: {}, deathBy: '', meteors: 0 };
   G.levelQueue.length = 0; G.levelUpWait = 0;
@@ -293,6 +293,7 @@ function awardKills(kills, expSum, isCombo, bossKills) {
   G.chainLast = G.time;
   if (G.chainN > s.maxChain) s.maxChain = G.chainN;
   G.events.push({ type: 'kill', n: G.chainN, k: kills + bossKills });
+  if (isCombo && G.skin.id === 'gold') gold = Math.round(gold * (1 + CONFIG.skins.perks.gold.gold));   // 황금 운석: 메테오로 잡은 몹 골드 +10%
   gold += bossKills * CONFIG.boss.gold;
   s.bossKills += bossKills;
   s.gold += gold; s.goldEarned += gold;

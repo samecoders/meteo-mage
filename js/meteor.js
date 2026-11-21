@@ -4,19 +4,20 @@ import { CONFIG } from './config.js';
 import { M, B, EXP } from './sim/mobs.js';
 import { grid, cellX, cellY } from './sim/grid.js';
 import { spawnOrb } from './orbs.js';
-import { addParticle, addCrater, addRing, addShake, particleRoom, addSpriteFx, spriteW, WHITE } from './render/effects.js';
+import { addParticle, addCrater, addRing, addShake, particleRoom, addSpriteFx, spriteW, WHITE, addStrike } from './render/effects.js';
 import { pal } from './skins.js';
 import { SPR } from './assets.js';
 import { playerSpeed } from './player.js';
 
-const MC = CONFIG.meteor, RL = CONFIG.relics;
+const MC = CONFIG.meteor, RL = CONFIG.relics, SK = CONFIG.skins.perks;
 
 export const meteors = [];
 // kind: 0 메테오, 1 메아리(유물), 2 유성우 작은 운석(유물, 법사 피해 없음)
-for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false, follow: false, kind: 0 });
+for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false, follow: false, kind: 0, killType: -1 });
 
 export const fires = [];
-for (let i = 0; i < 16; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
+// kind: 0 화염(화염 지대 카드·혜성 꼬리), 1 잔불(불꽃 운석), 2 독(독 운석). dps = 위력 × 이 값(초당)
+for (let i = 0; i < 24; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0, dps: 0, kind: 0 });
 
 export function resetMeteors() {
   for (let i = 0; i < meteors.length; i++) meteors[i].active = false;
@@ -27,7 +28,7 @@ function addMeteor(x, y, t0, fall, own, follow, kind) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (m.active) continue;
-    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own; m.follow = !!follow; m.kind = kind || 0;
+    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own; m.follow = !!follow; m.kind = kind || 0; m.killType = -1;
     return m;
   }
   return null;
@@ -48,7 +49,8 @@ export function fallTimeFor(G) {
 export function launchMeteor(G, x, y) {
   const own = MC.target === 'center';
   const fall = own ? fallTimeFor(G) : G.fallTime;
-  addMeteor(x, y, 0, fall, own, false);
+  const m = addMeteor(x, y, 0, fall, own, false);
+  if (m) m.killType = killTarget(typesNear(x, y, G.meteorRadius), G.meteorPower);   // 점선 원 대상(누른 순간 반경 안 몹 기준)
   if (G.twin || G.twinT > 0) addMeteor(x, y, -MC.twinDelay, fall, own, own);
 }
 
@@ -80,6 +82,34 @@ export function escapeDir(G, m, out) {
 export function killFraction(hp, power) {
   return Math.max(0, Math.min(1, (1 - hp / power) / MC.edgeDamage));
 }
+/** 반경 안에 있는 몹 종류(비트 마스크, 격자 칸 단위 — 메테오를 부를 때·카드 창에서만) */
+export function typesNear(x, y, radius) {
+  const g = grid, cols = g.cols, start = g.start, items = g.items, TY = M.type, r2 = (radius + g.cs) ** 2;
+  let mask = 0;
+  const c0 = cellX(x - radius), c1 = cellX(x + radius), r0 = cellY(y - radius), r1 = cellY(y + radius);
+  for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+    const mx = g.ox + (cx + 0.5) * g.cs - x, my = g.oy + (cy + 0.5) * g.cs - y;
+    if (mx * mx + my * my > r2) continue;
+    const c = cy * cols + cx;
+    for (let k = start[c], e = start[c + 1]; k < e; k++) mask |= 1 << TY[items[k]];
+  }
+  return mask;
+}
+const TYPES_BY_HP = CONFIG.mobs.types.map((t, i) => i).sort((a, b) => CONFIG.mobs.types[b].hp - CONFIG.mobs.types[a].hp);
+/**
+ * 점선 원 대상: 반경 안에 있는 몹 중 처치 반경이 0%보다 크고 100%보다 작은 가장 단단한 종류(없으면 -1).
+ * power2 를 주면(카드 예상) 'power→power2 에서 처치 범위가 넓어지는' 가장 단단한 종류
+ */
+export function killTarget(mask, power, power2) {
+  for (const t of TYPES_BY_HP) {
+    if (!(mask & (1 << t))) continue;
+    const hp = CONFIG.mobs.types[t].hp * M.hpMul, a = killFraction(hp, power);
+    if (power2 !== undefined) { if (killFraction(hp, power2) > a + 0.005) return t; }
+    else if (a > 0 && a < 1) return t;
+  }
+  return -1;
+}
+
 /** 지금 시각(새로 생기는 몹 기준) 그 종류의 체력 */
 export function mobHpNow(key) {
   const t = CONFIG.mobs.types.find((x) => x.key === key);
@@ -115,6 +145,8 @@ export function updateMeteors(G, dt) {
       m.x = G.player.x; m.y = G.player.y; m.follow = false; m.fall = fallTimeFor(G);
       G.events.push({ type: 'launch2' });
     }
+    // 암흑 별(모양): 낙하 마지막 0.3초 동안 반경 1.1배 안 몹을 아주 약하게 끌어당김
+    if (G.skin.id === 'dark' && m.kind === 0 && m.t >= 0 && m.fall - m.t <= SK.dark.last) pullMobs(m.x, m.y, G.meteorRadius * SK.dark.range, SK.dark.pull * dt);
     // 중력의 핵: 낙하 중 폭발 중심으로 몹을 끌어당김(메아리 폭발은 공명일 때만)
     if (G.R.gravity && m.t >= 0 && (m.kind === 0 || (m.kind === 1 && G.res.gravityEcho))) pullMobs(m.x, m.y, G.meteorRadius * RL.gravityRange, RL.gravityPull * dt);
     if (m.t >= m.fall) {
@@ -130,6 +162,39 @@ export function updateMeteors(G, dt) {
           addMeteor(m.x + Math.cos(a) * r, m.y + Math.sin(a) * r, -k * 0.12, RL.rainFall, false, false, 2);
         }
       }
+    }
+  }
+}
+
+/** 메테오 모양 부가 능력: 폭발에서 살아남은 몹에만(격자 칸 단위). 골드는 game.awardKills */
+function skinPerk(G, x, y, R, power) {
+  switch (G.skin.id) {
+    case 'fire': addFire(x, y, R * SK.fire.radius / 0.85, SK.fire.time, SK.fire.dps, 1); break;
+    case 'poison': addFire(x, y, R, SK.poison.time, SK.poison.total / SK.poison.time, 2); break;
+    case 'ice': slowMobs(x, y, R, Math.round(SK.ice.time * CONFIG.sim.tickRate), true); break;
+    case 'lightning': {
+      // 중심에 가까운 살아남은 몹 5마리(칸 고리를 안쪽부터)에 번개
+      const g = grid, cols = g.cols, start = g.start, items = g.items, HP = M.hp, DEAD = M.dead, TY = M.type;
+      const pcx = cellX(x), pcy = cellY(y), maxK = Math.ceil(R / g.cs);
+      let n = 0, kills = 0, expSum = 0;
+      for (let k = 0; k <= maxK && n < SK.lightning.count; k++) {
+        for (let v = -k; v <= k && n < SK.lightning.count; v++) {
+          const edge = v === -k || v === k;
+          for (let u = -k; u <= k && n < SK.lightning.count; u += edge ? 1 : 2 * k || 1) {
+            const c = (pcy + v) * cols + pcx + u;
+            for (let q = start[c], e = start[c + 1]; q < e && n < SK.lightning.count; q++) {
+              const i = items[q];
+              if (DEAD[i]) continue;
+              n++;
+              HP[i] -= power * SK.lightning.power;
+              addStrike(M.x[i], M.y[i], n * 0.03);
+              if (HP[i] <= 0) { DEAD[i] = 2; kills++; expSum += EXP[TY[i]]; }
+            }
+          }
+        }
+      }
+      if (kills) G.awardKills(kills, expSum, false, 0);
+      break;
     }
   }
 }
@@ -270,6 +335,7 @@ export function explode(G, x, y, Rr, powerR, noSelf, small) {
     G.mana = Math.min(CONFIG.mana.max, G.mana + gain);
     G.stats.refund = (G.stats.refund || 0) + gain;
   }
+  if (!noSelf) skinPerk(G, x, y, R, power);
   // 캐릭터 고유 능력(내 메테오 폭발만)
   const C = G.char;
   if (!noSelf && C) {
@@ -318,10 +384,11 @@ function explosionFx(G, x, y, R, kills, small) {
 }
 
 // ------------------------------------------------------------ 화염 지대 (격자 칸 단위)
-export function addFire(x, y, R, dur) {
+export function addFire(x, y, R, dur, dps, kind) {
   let slot = fires[0];
   for (let i = 0; i < fires.length; i++) { if (!fires[i].active) { slot = fires[i]; break; } if (fires[i].t < slot.t) slot = fires[i]; }
   slot.active = true; slot.x = x; slot.y = y; slot.r = R * 0.85; slot.t = dur || MC.fireDuration; slot.acc = 0;
+  slot.dps = dps ?? MC.fireDps; slot.kind = kind || 0;
 }
 
 export function updateFires(G, dt) {
@@ -332,7 +399,7 @@ export function updateFires(G, dt) {
     if (!z.active) continue;
     z.t -= dt;
     if (z.t <= 0) { z.active = false; continue; }
-    const dmg = G.meteorPower * MC.fireDps * dt, r2 = z.r * z.r;
+    const dmg = G.meteorPower * z.dps * dt, r2 = z.r * z.r;
     let kills = 0, expSum = 0;
     const c0 = cellX(z.x - z.r), c1 = cellX(z.x + z.r), r0 = cellY(z.y - z.r), r1 = cellY(z.y + z.r);
     for (let cy = r0; cy <= r1; cy++) {

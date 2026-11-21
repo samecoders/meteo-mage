@@ -173,6 +173,7 @@ export function initUI(h) {
   click('pQuit', () => H.toTitle());
   click('oRetry', () => H.retry());
   click('oRank', () => { rankBack = 'over'; showScreen('rank'); });
+  click('oUnlock', () => openCharacters());
   click('oTitle', () => H.toTitle());
   click('rBack', () => showScreen(rankBack));
   click('sBack', () => showScreen('title'));
@@ -715,9 +716,10 @@ async function openRank(scope) {
   if (req !== rankReq) return;
   list.innerHTML = '';
   $('rankNote').textContent = res.offline ? (rankingEnabled() ? t('rank.offline') : t('rank.local')) : '';
-  if (scope === 'country' && !save.data.settings.country) { list.innerHTML = `<div class="rmsg">${t('rank.noCountry')}</div>`; return; }
+  const msg = (k) => { const m = document.createElement('div'); m.className = 'rmsg'; m.textContent = t(k); list.appendChild(m); };
+  if (scope === 'country' && !save.data.settings.country) { msg('rank.noCountry'); return; }
   renderMyBest(res);
-  if (!res.rows.length) { list.innerHTML = `<div class="rmsg">${t('rank.empty')}</div>`; return; }
+  if (!res.rows.length) { msg('rank.empty'); return; }
   // 서버 문자열(닉네임·국가·모양·캐릭터)은 모두 textContent / 검사한 값으로만 — innerHTML 에 넣지 않음
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   for (const r of res.rows) {
@@ -753,10 +755,19 @@ function renderMyBest(res) {
 function heroIcon(h) { return heroIcons[CONFIG.heroLegacy[h] || h] || heroIcons.mage; }
 
 /** 결과 화면: 다음 목표(최대 3줄) */
-export function showGoals(lines) {
+export function showGoals(goals) {
   const box = $('oGoals');
   box.textContent = '';
-  for (const s of lines.slice(0, 3)) { const d = document.createElement('div'); d.textContent = '▶ ' + s; box.appendChild(d); }
+  for (const g of goals.slice(0, 2)) {
+    const d = document.createElement('div'); d.textContent = '▶ ' + g.text;
+    if (g.pct !== undefined) {   // 보관 골드 진행률 막대
+      const bar = document.createElement('i'); bar.className = 'gbar';
+      const fill = document.createElement('u'); fill.style.width = Math.round(g.pct * 100) + '%'; bar.appendChild(fill);
+      const pc = document.createElement('small'); pc.textContent = Math.round(g.pct * 100) + '%';
+      d.appendChild(bar); d.appendChild(pc);
+    }
+    box.appendChild(d);
+  }
 }
 
 // ------------------------------------------------------------ 메테오·주인공 상점 (꾸미기 전용)
@@ -768,10 +779,13 @@ function openShop() {
   const isHero = shopTab === 'hero';
   $('scrShop').querySelector('h2').textContent = t(isHero ? 'character' : 'meteorShop');
   $('shopNote').textContent = t(isHero ? 'shop.heroNote' : 'shop.note');
-  if (isHero) { const id = previewSkin && CONFIG.characters[previewSkin] ? previewSkin : save.data.heroEquipped; $('shopNote').textContent = t('char.' + id + '.desc'); charMusic = CONFIG.characters[id].theme; }
+  if (isHero) { const id = previewSkin && CONFIG.characters[previewSkin] ? previewSkin : save.data.heroEquipped; charMusic = CONFIG.characters[id].theme; }   // 설명은 카드마다
   const grid = $('shopGrid');
   grid.innerHTML = '';
-  const list = isHero ? HEROES : SKINS.map((sk) => sk.id);
+  grid.classList.toggle('chars', isHero);
+  $('shopPreview').classList.toggle('hidden', isHero);
+  if (isHero) { renderCharCards(grid); requestAnimationFrame(() => fitAll($('scrShop'))); return; }
+  const list = SKINS.map((sk) => sk.id);
   const equipped = isHero ? save.data.heroEquipped : save.data.skinEquipped;
   if (!previewSkin || !list.includes(previewSkin)) previewSkin = equipped;
   for (const id of list) {
@@ -781,6 +795,7 @@ function openShop() {
     card.innerHTML = `<img alt=""><span class="sn fit"></span><button class="pix small fit"></button>`;
     card.querySelector('img').src = isHero ? heroIcons[id] : skinIcons[id];
     card.querySelector('.sn').textContent = t((isHero ? 'hero.' : 'skin.') + id);
+    if (!isHero) { const sp = document.createElement('small'); sp.className = 'sp'; sp.textContent = t('skin.' + id + '.perk'); card.insertBefore(sp, card.querySelector('button')); }
     const btn = card.querySelector('button');
     if (eq) { btn.textContent = t('shop.equipped'); btn.disabled = true; }
     else if (owned) btn.textContent = t('shop.equip');
@@ -804,6 +819,69 @@ function openShop() {
   if (!previewRaf) { previewT = 0; previewRaf = requestAnimationFrame(drawPreview); }
   requestAnimationFrame(() => fitAll($('scrShop')));
 }
+// ------------------------------------------------------------ 캐릭터 선택: 5장 카드(강점·약점·고유 능력, 막대 4개, 잠긴 캐릭터는 실루엣)
+const BAR_KEYS = ['move', 'hp', 'meteor', 'explore'];
+function renderCharCards(grid) {
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+  const sel = previewSkin && CONFIG.characters[previewSkin] ? previewSkin : save.data.heroEquipped;
+  for (const id of HEROES) {
+    const c = CONFIG.characters[id], owned = ownsHero(id), eq = save.data.heroEquipped === id, price = heroPrice(id);
+    const card = el('div', 'char' + (eq ? ' eq' : '') + (sel === id ? ' sel' : '') + (owned ? '' : ' locked'));
+    const img = el('img'); img.alt = ''; img.src = heroIcons[id]; card.appendChild(img);
+    const body = el('div', 'cbody');
+    const head = el('div', 'chead'); head.appendChild(el('b', 'cname', t('hero.' + id))); head.appendChild(el('small', 'crole', t('char.' + id + '.role'))); body.appendChild(head);
+    const bars = el('div', 'cbars');
+    BAR_KEYS.forEach((k, i) => {
+      const row = el('div', 'cbar'); row.appendChild(el('span', '', t('char.bar.' + k)));
+      const track = el('i'); for (let q = 0; q < 5; q++) track.appendChild(el('u', q < c.bars[i] ? 'on' : ''));
+      row.appendChild(track); bars.appendChild(row);
+    });
+    body.appendChild(bars);
+    body.appendChild(el('div', 'cline plus', '▲ ' + t('char.' + id + '.plus')));
+    const minus = t('char.' + id + '.minus');
+    if (minus) body.appendChild(el('div', 'cline minus', '▼ ' + minus));
+    body.appendChild(el('div', 'cline abil', '★ ' + t('char.' + id + '.ability')));
+    const btn = el('button', 'pix small');
+    if (eq) { btn.textContent = t('shop.equipped'); btn.disabled = true; }
+    else if (owned) btn.textContent = t('shop.equip');
+    else { btn.textContent = `🔒 ${fmt(price)}`; if (save.data.bank < price) btn.classList.add('off'); else btn.classList.add('ready'); }
+    body.appendChild(btn);
+    card.appendChild(body);
+    card.addEventListener('click', () => {   // 고르면 그 캐릭터 테마곡
+      previewSkin = id; charMusic = c.theme;
+      for (const x of grid.children) x.classList.remove('sel');
+      card.classList.add('sel');
+    });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      previewSkin = id; charMusic = c.theme;
+      if (owned) { equipHero(id); sfx.click(); openShop(); return; }
+      if (!buyHero(id)) { sfx.deny(); toastShop(t('shop.notEnough')); return; }
+      openShop();
+      celebrateUnlock(id);
+    });
+    grid.appendChild(card);
+  }
+}
+/** 해금 순간: 축하 연출 + 그 캐릭터 테마곡 */
+function celebrateUnlock(id) {
+  if (H.onUnlock) H.onUnlock(id);
+  toastShop(t('char.unlocked', { name: t('hero.' + id) }));
+  const card = [...$('shopGrid').children][HEROES.indexOf(id)];
+  if (card) { card.classList.remove('unlockFx'); void card.offsetWidth; card.classList.add('unlockFx'); }
+  const fx = $('unlockFx'); fx.textContent = t('char.unlocked', { name: t('hero.' + id) });
+  fx.classList.remove('on'); void fx.offsetWidth; fx.classList.add('on');
+}
+/** 보관 골드로 지금 해금할 수 있는 캐릭터(가장 싼 것) */
+export function unlockableHero() { return HEROES.filter((h) => !ownsHero(h) && save.data.bank >= heroPrice(h)).sort((a, b) => heroPrice(a) - heroPrice(b))[0] || null; }
+export function openCharacters() { shopTab = 'hero'; previewSkin = null; showScreen('shop'); }
+/** 결과 화면: 새 캐릭터를 해금할 수 있으면 버튼 */
+export function showUnlockReady() {
+  const b = $('oUnlock'), id = unlockableHero();
+  b.classList.toggle('hidden', !id);
+  if (id) b.textContent = '🔓 ' + t('char.unlockReady');
+}
+
 function toastShop(msg) { const el = $('shopMsg'); el.textContent = msg; clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, 1500); }
 function stopPreview() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; }
 
@@ -978,6 +1056,18 @@ function setupDebugItems() {
     b.title = k;
     b.innerHTML = itemIcons[k] ? `<img alt="${k}" src="${itemIcons[k]}">` : k.slice(0, 3);
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugItem && H.debugItem(k); });
+    box.appendChild(b);
+  }
+  for (const id of H.heroKeys || []) {   // 캐릭터 바로 바꾸기(새 판)
+    const b = document.createElement('button'); b.title = id;
+    const im = document.createElement('img'); im.alt = ''; im.src = heroIcons[id] || ''; b.appendChild(im);
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugHero(id); });
+    box.appendChild(b);
+  }
+  for (const id of H.skinKeys || []) {   // 메테오 모양 바로 바꾸기(새 판)
+    const b = document.createElement('button'); b.title = id;
+    const im = document.createElement('img'); im.alt = ''; im.src = skinIcons[id] || ''; b.appendChild(im);
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugSkin(id); });
     box.appendChild(b);
   }
   for (const [label, k] of [['포위', 'ring'], ['늑대', 'wolfRaid'], ['골렘', 'golemMarch'], ['보스', 'boss']]) {   // 사건 바로(2초 경고 후)

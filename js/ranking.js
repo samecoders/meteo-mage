@@ -156,6 +156,13 @@ export async function fetchTop(scope, country, limit = 10) {
   }
 }
 
+/** 캐시에 있는 목록만(요청 없이). 없으면 null — 결과 화면 '이번 주 10위까지' 용 */
+export function peekTop(scope, country, limit = 10) {
+  const period = PERIOD[scope] || 'all', cc = scope === 'country' ? country : null;
+  const hit = cache.get(`${period}|${cc}|${R.season}|${limit}`);
+  return hit && Date.now() - hit.t < R.cacheSec * 1000 * 20 ? hit.data : null;   // 결과 화면용은 10분까지
+}
+
 /** 랭킹을 못 쓸 때: 이번 시즌 내 기기 최고 기록 하나 */
 function localTop() {
   const s = save.data.settings, b = save.data.best;

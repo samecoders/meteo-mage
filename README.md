@@ -374,3 +374,14 @@ supabase/schema.sql
 - 랭킹 화면은 탭마다 불러오고, 같은 탭은 30초 캐시합니다.
 - `supabase/schema.sql` 은 예전(자체 서버용) 파일이라 새 함수 모양(`p_period`, `spawn_cap` 표)과 다릅니다. 서버는 따로 준비한 것을 씁니다.
 - **스폰 곡선(`spawn.curve`, `curveMul`, 포위 무리 등)이나 시즌을 바꿀 때마다** `tools/spawn_cap.html` 을 열어 SQL 을 다시 만들고 Supabase SQL Editor 에서 실행해야 합니다. (`python tools/serve.py` 후 `http://localhost:8080/tools/spawn_cap.html`)
+
+## 16. 5차 수정 — 캐릭터 5종, 메테오 위력, 메테오 모양 능력, 다음 목표 (2026-11-21)
+
+- **캐릭터 5종**(image/<ID>.png 원본 그대로, `CONFIG.characters`): 대마법사 0 / 견습 마법사 1만 / 얼음 마녀 2만 / 강령술사 3만 / 화염술사 4만.
+  예전 ID 는 `CONFIG.heroLegacy` 로 이전(fire_mage→mage, frost_witch→hero_icewitch, earth_sage→hero_necromancer). 랭킹 아이콘도 같은 표.
+- **선택 화면**: 카드마다 역할·막대 4개(이동·체력·메테오·탐험)·강점·약점·고유 능력, 잠긴 캐릭터는 실루엣. 해금하면 축하 연출 + 테마곡, 결과 화면에 "새 캐릭터를 해금할 수 있어요!" 버튼.
+- **테마곡**: 대마법사 bgm_hero_earth, 견습 bgm_field, 얼음 마녀 bgm_hero_frost, 강령술사 bgm_hero_necro(없으면 bgm_ruin), 화염술사 bgm_hero_fire(`fallbackTrack`).
+- **메테오 위력**: 범위 카드 15·7·4·3·2%, 위력 카드 30·12·7·5·3%(같은 카드를 거듭 고를수록 줄어듦). 점선 원은 반경 안 몹 중 처치 반경 0~100% 사이인 가장 단단한 종류를 자동으로 고르고 그 몹 아이콘을 옆에 표시, 카드 예상 숫자도 같은 대상.
+- **메테오 모양 부가 능력**(`CONFIG.skins.perks`, 살아남은 몹·보상에만): 불꽃 잔불 / 얼음 둔화 / 독 / 번개 5마리 / 암흑 마지막 0.3초 끌어당김 / 황금 골드 +10%. 가격 5배.
+- **다음 목표**: 결과 화면에 최대 2개(내 최고 기록·이번 주 10위(랭킹 캐시가 있을 때)·다음 캐릭터·다음 메테오 모양), 골드 목표는 보관 골드 진행률 막대.
+- **측정 도구**: `node tools/par.mjs '{"hero":"mage","games":150}'` — 봇을 11개 프로세스로 나눠 평균·표준오차(옵션: skin, build, god, treasure, set).

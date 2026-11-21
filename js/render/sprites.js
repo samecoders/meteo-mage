@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { SpriteBatch, ShapeBatch } from './gl.js';
 import { M, B } from '../sim/mobs.js';
 import { O } from '../orbs.js';
-import { meteors, fires, threatOnPlayer, escapeDir, killFraction, mobHpNow } from '../meteor.js';
+import { meteors, fires, threatOnPlayer, escapeDir, killFraction } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
 import { items, fireballs, KINDS, RARITY, ITEM_CHEST } from '../items.js';
 import { BT } from '../bolts.js';
@@ -148,6 +148,15 @@ export function fillTop(V, alpha, G, time) {
     if (!blink) b.push(p.x * 0.5 - V.left, p.y * 0.5 - V.top, hero, p.flip | ((Math.abs(p.vx) + Math.abs(p.vy) > 20) ? 4 : 0) | (starFlash ? 2 : 0), 0, 1, 0);
   }
   fillSpriteFx(b, V, p.x, p.y);
+  // '이 몹도 죽는 범위' 원 옆의 몹 아이콘
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active || m.killType < 0 || m.t < 0) continue;
+    const kf = killFraction(CONFIG.mobs.types[m.killType].hp * M.hpMul, G.meteorPower);
+    if (kf <= 0.02) continue;
+    const r = G.meteorRadius * kf * 0.5;
+    b.push(m.x * 0.5 - V.left + r * 0.72 + 6, m.y * 0.5 - V.top - r * 0.72 - 6, m.killType, 0, 0, 1, 16);
+  }
   const spr = SPR[G.skin.sprite];
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
@@ -168,8 +177,9 @@ export function fillUnder(V, G, time, dashPrev) {
     if (!z.active) continue;
     const sx = z.x * 0.5 - V.left, sy = z.y * 0.5 - V.top;
     const d = Math.min(1, z.t / 1.0);
-    b.push(sx, sy, z.r * 0.5, 0, pal(3), 0, (90 * d) | 0, 0, 0);
-    b.push(sx, sy, z.r * 0.5, 2, ORANGE, 2, (220 * d) | 0, 18, ((time * 60) | 0) & 255);
+    const c0 = z.kind === 2 ? pal(25) : pal(3), c1 = z.kind === 2 ? pal(6) : ORANGE, dens = z.kind ? 0.6 : 1;   // 독=초록, 잔불은 옅게
+    b.push(sx, sy, z.r * 0.5, 0, c0, 0, (90 * d * dens) | 0, 0, 0);
+    b.push(sx, sy, z.r * 0.5, 2, c1, 2, (220 * d * dens) | 0, 18, ((time * 60) | 0) & 255);
   }
   // 보물: 바닥 빛 + 열기 게이지(원형) / 유적: 룬석 다 모으면 제단 원이 빛남
   for (const t of treasures) {
@@ -242,7 +252,8 @@ export function fillOver(V, G, time, alpha) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active || m.kind === 2 || (m.follow && m.t < 0)) continue;
-    const kf = killFraction(mobHpNow(CONFIG.meteor.killRangeMob), G.meteorPower * (m.kind === 1 ? CONFIG.relics.echoPower : 1));
+    if (m.killType < 0) continue;
+    const kf = killFraction(CONFIG.mobs.types[m.killType].hp * M.hpMul, G.meteorPower * (m.kind === 1 ? CONFIG.relics.echoPower : 1));
     if (kf > 0.02) b.push(m.x * 0.5 - V.left, m.y * 0.5 - V.top, G.meteorRadius * 0.5 * kf, 2, YELLOW, 2, 255, 14, ((time * 25) | 0) & 255);
   }
   // 보물 빛기둥(종류별 색) — 가까울수록 빨리 반짝임

@@ -374,11 +374,11 @@ export const CONFIG = {
     unlockLevel: 5,        // 이 레벨에 메테오 습득(그 전에는 마력 링이 숨겨지고 탭해도 아무 일 없음)
     learnTime: 3,          // 메테오 습득 안내 시간(초, 게임 정지)
     rangeCardPct: 0.15,
-    rangeCardSteps: [0.15, 0.15, 0.12, 0.1, 0.08],   // 범위 카드 n번째 증가율(같은 카드를 거듭 고를수록 줄어듦)
-    powerCardSteps: [0.3, 0.24, 0.18, 0.14, 0.1],    // 위력 카드 n번째 증가율
+    rangeCardSteps: [0.15, 0.07, 0.04, 0.03, 0.02],  // 범위 카드 n번째 증가율(같은 카드를 거듭 고를수록 줄어듦 → 섞어 고르는 게 이득)
+    powerCardSteps: [0.3, 0.12, 0.07, 0.05, 0.03],   // 위력 카드 n번째 증가율
     overkillRefund: 0.01,  // 오버킬 피해 1당 마력(%) 환급
     overkillMax: 30,       // 폭발 한 번 환급 상한(마력 %)
-    killRangeMob: 'golem', // 폭발 원 안에 '이 몹도 죽는 범위' 점선 원
+    // 점선 원 대상: 반경 안 몹 중 처치 반경 0~100% 사이인 가장 단단한 종류를 자동으로(meteor.js killTarget)
     powerCardPct: 0.30,
     twinDelay: 0.5,
     // 2차 수정(2026-11-20): 메테오 버튼(또는 Space)을 누른 순간 법사가 서 있는 자리에 고정해서 떨어짐. 평원 탭은 아무 일 없음
@@ -441,7 +441,16 @@ export const CONFIG = {
 
   // ------------------------------------------------------------ 메테오 모양(꾸미기 전용) 가격
   skins: {
-    prices: { fire: 0, ice: 2000, poison: 5000, lightning: 10000, dark: 20000, gold: 40000 },
+    prices: { fire: 0, ice: 10000, poison: 25000, lightning: 50000, dark: 100000, gold: 200000 },   // 5차: 5배(이미 산 모양은 유지)
+    // 모양별 부가 능력: 폭발 반경·위력·낙하·판정은 모두 같고, 살아남은 몹이나 보상에만 작은 양념
+    perks: {
+      fire:      { time: 1.5, dps: 0.08, radius: 0.7 },      // 잔불 1.5초, 초당 위력 × 0.08(반경 × 0.7)
+      ice:       { slow: 0.8, time: 1 },                     // 살아남은 몹 1초 20% 느려짐
+      poison:    { total: 0.1, time: 2 },                    // 살아남은 몹에 2초에 걸쳐 총 위력 × 0.1(측정으로 0.15→0.1)
+      lightning: { count: 5, power: 0.3 },                   // 중심에 가까운 살아남은 몹 5마리에 위력 × 0.3
+      dark:      { last: 0.3, range: 1.1, pull: 15 },        // 낙하 마지막 0.3초, 반경 1.1배 안 초당 15 끌어당김(측정으로 40→15)
+      gold:      { gold: 0.1 },                              // 메테오로 잡은 몹의 골드 +10%
+    },
   },
 
   // ------------------------------------------------------------ 캐릭터 3종(보관 골드로 해금, 판을 넘어 남음)
@@ -454,23 +463,23 @@ export const CONFIG = {
   // 캐릭터 5종: 그림 image/<ID>.png(원본 픽셀 그대로, 1배). 수치는 기본 대비 배율/값
   characters: {
     // 푸른 대마법사(균형형) — 지혜: 한 판에 한 번 레벨업 카드 다시 뽑기
-    mage: { sprite: 'mage', speed: 1.00, hearts: 3, theme: 'hero_fire', reroll: 1 },
-    // 견습 마법사(탐험형) — 상자 여는 시간 -40%, 흡수 범위 +50%, 나침반 2개 / 약점: 마법탄 피해 -15%
+    mage: { sprite: 'mage', speed: 1.00, hearts: 3, theme: 'hero_earth', reroll: 1, bars: [3, 3, 3, 3] },   // bars: 선택 화면 막대(이동·체력·메테오·탐험, 1~5)
+    // 견습 마법사(탐험형) — 상자 여는 시간 -40%, 흡수 범위 +50%, 나침반 2개 / 약점: 마법탄 피해 -20%
     //   호기심: 보물을 열 때마다 3초간 이동 +20%
     hero_apprentice: { sprite: 'hero_apprentice', speed: 1.00, hearts: 3, theme: 'field',
-      openTime: 0.6, pickup: 1.5, compass2: true, boltDamage: 0.85, curiosityTime: 3, curiositySpeed: 0.2 },
-    // 얼음 마녀(질주형) — 이동 1.12, 대시 쿨타임 -20% / 약점: 하트 2
+      openTime: 0.6, pickup: 1.5, compass2: true, boltDamage: 0.8, curiosityTime: 3, curiositySpeed: 0.2, bars: [3, 3, 2, 5] },
+    // 얼음 마녀(질주형) — 이동 1.10, 대시 쿨타임 -65% / 약점: 하트 2 (5차 7단계 봇 측정으로 조정)
     //   서리 발자국: 대시 경로의 몹 1.5초간 30% 느려짐(격자 칸)
-    hero_icewitch: { sprite: 'hero_icewitch', speed: 1.12, hearts: 2, theme: 'hero_frost',
-      dashCd: 0.8, frostSlow: 0.7, frostTime: 1.5, frostWidth: 48 },
-    // 강령술사(수호형) — 하트 4, 피격 후 무적 +0.5초 / 약점: 이동 0.92
-    //   영혼 수확: 메테오 한 방 500마리 이상이면 하트 1칸(20초에 한 번)
-    hero_necromancer: { sprite: 'hero_necromancer', speed: 0.92, hearts: 4, theme: 'hero_earth',
-      invulnPlus: 0.5, harvestKills: 500, harvestCd: 20 },
-    // 화염술사(대마법형) — 메테오 범위 +10%, 위력 +10% / 약점: 마력 충전 -15%, 마법탄 발사 속도 -15%
-    //   연소: 한 방 300마리 이상이면 마력 20% 환급
+    hero_icewitch: { sprite: 'hero_icewitch', speed: 1.1, hearts: 2, theme: 'hero_frost',
+      dashCd: 0.35, frostSlow: 0.85, frostTime: 1.5, frostWidth: 60, bars: [5, 2, 3, 3] },
+    // 강령술사(수호형) — 하트 4, 피격 후 무적 +0.2초 / 약점: 이동 0.80(=129, 가장 빠른 몹 123보다 빠름) (봇 측정으로 조정)
+    //   영혼 수확: 메테오 한 방 800마리 이상이면 하트 1칸(30초에 한 번)
+    hero_necromancer: { sprite: 'hero_necromancer', speed: 0.8, hearts: 4, theme: 'hero_necro',
+      invulnPlus: 0.2, harvestKills: 800, harvestCd: 30, bars: [2, 5, 3, 2] },
+    // 화염술사(대마법형) — 메테오 범위 +15%, 위력 +15% / 약점: 마력 충전 -10%, 마법탄 발사 속도 -10% (봇 측정으로 조정)
+    //   연소: 한 방 120마리 이상이면 마력 30% 환급
     hero_pyromancer: { sprite: 'hero_pyromancer', speed: 1.00, hearts: 3, theme: 'hero_fire',
-      meteorRadius: 1.1, meteorPower: 1.1, manaRegen: 0.85, boltRate: 0.85, burnKills: 300, burnMana: 20 },
+      meteorRadius: 1.15, meteorPower: 1.15, manaRegen: 0.9, boltRate: 0.9, burnKills: 120, burnMana: 30, bars: [3, 3, 5, 2] },
   },
 
   // ------------------------------------------------------------ 이펙트 상한 [저, 중, 고]
@@ -619,9 +628,12 @@ export const CONFIG = {
       battle: { file: 'bgm_battle.mp3', loop: true,  loopStart: 0, loopEnd: 0 },
       star:   { file: 'bgm_star.mp3',   loop: true,  loopStart: 0, loopEnd: 0 },
       // 캐릭터 테마·사건 곡(파일이 없으면 fallback 의 내장 곡)
-      hero_fire:  { file: 'bgm_hero_fire.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
-      hero_frost: { file: 'bgm_hero_frost.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
-      hero_earth: { file: 'bgm_hero_earth.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field' },
+      // 캐릭터 테마(5차): 대마법사=hero_earth, 견습=field, 얼음 마녀=hero_frost, 강령술사=hero_necro, 화염술사=hero_fire
+      // fallbackTrack: 파일이 없으면 이 곡의 파일(그것도 없으면 내장 곡 fallback)
+      hero_fire:  { file: 'bgm_hero_fire.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'field', fallbackTrack: 'field' },
+      hero_frost: { file: 'bgm_hero_frost.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field', fallbackTrack: 'field' },
+      hero_earth: { file: 'bgm_hero_earth.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'field', fallbackTrack: 'field' },
+      hero_necro: { file: 'bgm_hero_necro.mp3', loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle', fallbackTrack: 'ruin' },
       wolf:   { file: 'bgm_wolf.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
       golem:  { file: 'bgm_golem.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
       siege:  { file: 'bgm_siege.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },

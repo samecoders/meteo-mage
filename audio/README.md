@@ -11,7 +11,11 @@
 | jingle_meteor.mp3 | 레벨 5 메테오 습득 — 한 번 |
 | jingle_levelup.mp3 | 레벨 업 — 한 번 |
 | jingle_gameover.mp3 | 게임 오버 — 한 번 |
-| bgm_hero_fire / bgm_hero_frost / bgm_hero_earth.mp3 | 캐릭터 테마(평소 곡) — 반복 |
+| bgm_hero_earth.mp3 | 푸른 대마법사 테마(웅장하고 듬직한 노현자) — 없으면 bgm_field |
+| bgm_field.mp3 | 견습 마법사 테마(경쾌한 모험 행진곡) |
+| bgm_hero_frost.mp3 | 얼음 마녀 테마 — 없으면 bgm_field |
+| bgm_hero_necro.mp3 | 강령술사 테마(아직 없음) — 없으면 bgm_ruin |
+| bgm_hero_fire.mp3 | 화염술사 테마 — 없으면 bgm_field |
 | bgm_wolf / bgm_golem / bgm_siege.mp3 | 늑대 무리 습격 / 골렘 행진 / 포위 무리 — 반복 |
 | bgm_boss.mp3 | 보스가 필드에 있을 때 — 반복 |
 | bgm_ruin.mp3 | 유적 개방 대습격 — 반복(없으면 bgm_siege) |

@@ -449,3 +449,36 @@ input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yel
 #cards .reroll { flex: 0 0 auto; align-self: center; min-height: 48px; }
 #cards:not(.three) { flex-wrap: wrap; }
 #cards:not(.three) .reroll { flex-basis: 100%; }
+
+/* ===================================================== 5차 2단계: 캐릭터 선택 카드 */
+#shopGrid.chars { grid-template-columns: 1fr; gap: 6px; }
+.char { display: flex; gap: 8px; border: 3px solid var(--slate); background: rgba(0,0,0,.3); padding: 6px; cursor: pointer; }
+.char.sel { border-color: var(--white); } .char.eq { border-color: var(--yellow); }
+.char > img { width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; flex: 0 0 52px; align-self: center; }
+.char.locked > img { filter: brightness(0) drop-shadow(0 0 2px #fff); opacity: .8; }
+.char .cbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.char .chead { display: flex; align-items: baseline; gap: 6px; }
+.char .cname { font-size: 15px; } .char .crole { font-size: 11px; color: var(--cyan); }
+.char .cbars { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; }
+.char .cbar { display: flex; align-items: center; gap: 4px; font-size: 10px; }
+.char .cbar span { flex: 0 0 34px; opacity: .85; white-space: nowrap; overflow: hidden; }
+.char .cbar i { display: flex; gap: 1px; } .char .cbar u { width: 8px; height: 7px; background: var(--slate); text-decoration: none; }
+.char .cbar u.on { background: var(--yellow); }
+.char .cline { font-size: 11px; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+.char .plus { color: #a7f070; } .char .minus { color: #ff9d8a; } .char .abil { color: #ffe9a0; }
+.char .pix.small { align-self: flex-end; min-height: 34px; padding: 2px 10px; font-size: 12px; }
+.char .pix.small.ready { background: var(--green); animation: pulse .8s steps(2) infinite; }
+.char.unlockFx { animation: unlockCard 1.2s steps(6); }
+@keyframes unlockCard { 0% { box-shadow: 0 0 0 0 var(--yellow); } 50% { box-shadow: 0 0 24px 8px var(--yellow); } 100% { box-shadow: none; } }
+#unlockFx { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 25; pointer-events: none; opacity: 0; white-space: nowrap;
+  font-weight: 900; font-size: 26px; color: var(--yellow); text-shadow: 3px 3px 0 var(--red), 5px 5px 0 #000; }
+#unlockFx.on { animation: unlockFx 2.2s steps(11) forwards; }
+@keyframes unlockFx { 0% { opacity: 0; transform: translateX(-50%) scale(1.8); } 15% { opacity: 1; transform: translateX(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+.unlockBtn { background: var(--green) !important; animation: pulse .9s steps(2) infinite; }
+.skin .sp { font-size: 10px; color: #ffe9a0; text-align: center; line-height: 1.2; white-space: normal; }
+
+/* 다음 목표 진행률 막대 */
+.goals div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.goals .gbar { flex: 1 1 60px; height: 8px; background: var(--slate); min-width: 60px; }
+.goals .gbar u { display: block; height: 100%; background: var(--yellow); }
+.goals small { font-size: 11px; color: var(--yellow); }

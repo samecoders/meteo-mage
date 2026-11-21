@@ -45,9 +45,9 @@ function resolveLevelUps() {
 }
 
 /** 한 판 시작. skill: 0~1 (반응 속도) */
-export function startBotGame({ seed = 1, skill = 0.8, hero = 'mage' } = {}) {
+export function startBotGame({ seed = 1, skill = 0.8, hero = 'mage', skin = 'fire' } = {}) {
   if (!inited) { if (!M.x) initSim(CONFIG.sim.maxMobs); inited = true; }
-  newGame({ seed, hero });
+  newGame({ seed, hero, skin });
   if (globalThis.__botGod) G.god = true;   // 측정용: 죽지 않는 봇(메테오 효율만 비교)
   return {
     seed, skill, f: 0, inp: { mx: 0, my: 0, dashHeld: false }, lx: 1, ly: 0,
@@ -93,8 +93,8 @@ export function botResult(st) {
 }
 
 /** 화면 없이 한 판 전체 */
-export function runGame({ seed = 1, maxSec = 900, skill = 0.8, hero = 'mage' } = {}) {
-  const st = startBotGame({ seed, skill, hero });
+export function runGame({ seed = 1, maxSec = 900, skill = 0.8, hero = 'mage', skin = 'fire' } = {}) {
+  const st = startBotGame({ seed, skill, hero, skin });
   const frames = maxSec * 60;
   for (let f = 0; f < frames; f++) if (botFrame(st)) break;
   return botResult(st);
