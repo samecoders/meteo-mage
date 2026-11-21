@@ -43,3 +43,10 @@
 - 아이템: item_star, item_potion, item_heart, item_crystal, item_boots, item_feather, item_magnet, item_coins, item_scroll, item_hourglass, item_bomb, item_thunder, item_orb, item_ring, item_lens, item_twin, item_fury, item_chest
 - 버튼 아이콘: ui_dash, ui_shield, ui_dashup
 - item_potion, item_magnet, item_chest는 새 그림으로 바꿨고, 이전 그림은 `*_v1.png`로 남겨 두었습니다.
+
+## 2026-11-21 보물 상자·미믹·제단·룬석·유물 12종
+
+`meteo_4nd.png`를 잘라 만든 파일입니다. 배경은 투명이고 원래 도트 해상도(정사각형 캔버스)입니다.
+
+- 보물: chest_wood, chest_gold, mimic(오른쪽을 봄), altar(63px), rune
+- 유물: relic_gravity, relic_echo, relic_phoenix, relic_rain, relic_heart, relic_spring, relic_shadow, relic_comet, relic_rift, relic_crown, relic_lens, relic_bolt

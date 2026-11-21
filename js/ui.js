@@ -512,17 +512,32 @@ export function killPopup(x, y, kills) {
   d.style.left = x + 'px'; d.style.top = y + 'px';
   d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
 }
-let toastT = 0;
-/** 짧은 알림(위 1/3 안). icon: 아이템 키(그림 표시) */
+const TOAST_MAX = CONFIG.ui.toastMax, TOAST_MS = 1600;
+/** 짧은 알림(위 1/3 안). 한꺼번에 최대 3개 — 새 알림이 오면 가장 오래된 것부터 사라짐. icon: 아이템 키 */
 export function toast(text, kind, icon) {
-  const el = $('toast'), im = $('toastIco');
-  $('toastText').textContent = text;
+  const box = $('toasts');
+  while (box.children.length >= TOAST_MAX) box.firstChild.remove();
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || '');
   const src = icon ? itemIcons[icon] : null;
-  if (src) { im.src = src; im.classList.remove('hidden'); } else im.classList.add('hidden');
-  el.className = 'show ' + (kind || '');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => { el.className = ''; }, 1500);
+  if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; el.appendChild(im); }
+  const sp = document.createElement('span'); sp.textContent = text; el.appendChild(sp);
+  box.appendChild(el);
+  setTimeout(() => el.classList.add('out'), TOAST_MS);
+  setTimeout(() => el.remove(), TOAST_MS + 300);
 }
+export function clearToasts() { $('toasts').innerHTML = ''; }
+
+/** 죽은 순간: 상단에 원인 크게(“내 메테오”, “늑대 무리”, “포위당함” …) */
+export function showDeathCause(text) {
+  const el = $('deathCause');
+  el.textContent = '';
+  const b = document.createElement('div'); b.textContent = text;
+  const sm = document.createElement('small'); sm.textContent = t('death.title');
+  el.appendChild(sm); el.appendChild(b);
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+}
+export function hideDeathCause() { $('deathCause').classList.remove('on'); }
 export function itemIcon(key) { return itemIcons[key]; }
 
 // ------------------------------------------------------------ 레벨업 카드
@@ -552,7 +567,7 @@ export function showLevelUp(level, special, cards, onPick) {
 }
 
 // ------------------------------------------------------------ 결과
-export function showGameOver(rec, bankAdd, isBest) {
+export function showGameOver(rec, bankAdd, isBest, cause) {
   const rows = [
     ['result.kills', fmt(rec.kills)],
     ['result.time', fmtTime(rec.surviveSec)],
@@ -570,14 +585,24 @@ export function showGameOver(rec, bankAdd, isBest) {
   }
   $('oBank').textContent = t('result.bank', { n: fmt(bankAdd) });
   $('oBest').classList.toggle('hidden', !isBest);
+  $('oCause').textContent = cause ? t('result.cause', { cause }) : '';
   $('oRankStatus').textContent = '';
+  $('oRankStatus').classList.remove('celebrate');
+  $('oGoals').textContent = '';
+  hideDeathCause();
   showScreen('over');
 }
 export function setRankStatus(r) {
   const el = $('oRankStatus');
   if (r.pending) el.textContent = t('rank.submitting');
   else if (r.noNick) el.textContent = t('rank.noNick');
-  else if (r.ok) el.textContent = r.rank ? t('rank.weekRank', { rank: fmt(r.rank) }) : t('rank.saved');   // 예: 이번 주 1,234위
+  else if (r.ok) {   // 이번 기록: 오늘 12위 · 이번 주 340위 · 전체 2,105위 (10위 안이면 축하)
+    const parts = [['today', r.today], ['week', r.week], ['all', r.all]].filter(([, v]) => v > 0).map(([k, v]) => t('rank.' + k) + ' ' + t('rank.nth', { rank: fmt(v) }));
+    el.textContent = parts.length ? t('rank.thisRun', { list: parts.join(' · ') }) : t('rank.saved');
+    const top10 = [r.today, r.week, r.all].some((v) => v > 0 && v <= 10);
+    el.classList.toggle('celebrate', top10);
+    if (top10) { el.textContent = '🏆 ' + el.textContent; sfx.bossKill(); }
+  }
   else if (r.reason === 'too_fast') el.textContent = '';                                       // 조용히 넘어감
   else if (r.reason === 'impossible') el.textContent = t('rank.impossible');
   else if (r.reason === 'bad_nickname') el.textContent = t('rank.badNick');
@@ -603,22 +628,48 @@ async function openRank(scope) {
   list.innerHTML = '';
   $('rankNote').textContent = res.offline ? (rankingEnabled() ? t('rank.offline') : t('rank.local')) : '';
   if (scope === 'country' && !save.data.settings.country) { list.innerHTML = `<div class="rmsg">${t('rank.noCountry')}</div>`; return; }
+  renderMyBest(res);
   if (!res.rows.length) { list.innerHTML = `<div class="rmsg">${t('rank.empty')}</div>`; return; }
-  res.rows.forEach((r, i) => {
-    const row = document.createElement('div');
-    row.className = 'rrow' + (r.mine ? ' mine' : '');
-    const icon = skinIcons[r.meteor_skin] || skinIcons.fire;
-    row.innerHTML = `<span class="rn">${i + 1}</span><span class="rf">${flag(r.country)}</span><img class="rh" alt=""><span class="rname"></span><img class="rs" alt=""><b class="rk"></b>`;
-    const medal = UIIMG[['ui_medal_gold', 'ui_medal_silver', 'ui_medal_bronze'][i]];
-    if (i === 0 && UIIMG.ui_crown) row.querySelector('.rn').innerHTML = `<img src="${UIIMG.ui_crown}" alt="1">`;
-    else if (medal) row.querySelector('.rn').innerHTML = `<img src="${medal}" alt="${i + 1}">`;
-    row.querySelector('.rname').textContent = r.nickname;
-    row.querySelector('.rs').src = icon;
-    row.querySelector('.rh').src = heroIcons[r.hero] || heroIcons.mage;
-    row.querySelector('.rk').textContent = fmt(r.kills);
+  // 서버 문자열(닉네임·국가·모양·캐릭터)은 모두 textContent / 검사한 값으로만 — innerHTML 에 넣지 않음
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+  for (const r of res.rows) {
+    const row = el('div', 'rrow' + (r.mine ? ' me' : ''));
+    const rn = el('span', 'rn');
+    const medal = UIIMG[['ui_medal_gold', 'ui_medal_silver', 'ui_medal_bronze'][r.rank - 1]];
+    if (r.rank === 1 && UIIMG.ui_crown) { const im = el('img'); im.src = UIIMG.ui_crown; im.alt = '1'; rn.appendChild(im); }
+    else if (medal) { const im = el('img'); im.src = medal; im.alt = String(r.rank); rn.appendChild(im); }
+    else rn.textContent = fmt(r.rank);
+    row.appendChild(rn);
+    row.appendChild(el('span', 'rf', flag(r.country)));
+    row.appendChild(el('span', 'rname', r.nickname));
+    const rh = el('img', 'rh'); rh.alt = ''; rh.src = heroIcon(r.hero); row.appendChild(rh);
+    const rs = el('img', 'rs'); rs.alt = ''; rs.src = skinIcons[r.meteor_skin] || skinIcons.fire; row.appendChild(rs);
+    row.appendChild(el('b', 'rk', fmt(r.kills)));
+    row.appendChild(el('span', 'rl', r.level ? 'Lv' + r.level : ''));
     list.appendChild(row);
-  });
-  if (res.me) $('rankMe').textContent = t('rank.myRank', { rank: fmt(res.me.rank), kills: fmt(res.me.kills) });
+  }
+}
+/** 맨 아래 고정 줄: 내 최고 기록 — 1,234위 / 전체 56,789개 · 킬 · 내 기록 수 */
+function renderMyBest(res) {
+  const box = $('rankMe');
+  box.textContent = '';
+  if (!res.me) { if (!res.offline) box.textContent = t('rank.noMine'); return; }
+  const m = res.me;
+  const a = document.createElement('div');
+  a.textContent = t('rank.myBest', { rank: fmt(m.rank), total: fmt(m.total || res.total || 0) });
+  const b = document.createElement('small');
+  b.textContent = t('rank.myBestSub', { kills: fmt(m.kills), n: fmt(m.records || 1) });
+  box.appendChild(a); box.appendChild(b);
+}
+/** 캐릭터 아이콘: 서버 이름(fire_mage …) → 그림 */
+const SERVER_HERO_ICON = { fire_mage: 'mage', frost_witch: 'icewitch', earth_sage: 'apprentice' };
+function heroIcon(h) { return heroIcons[h] || heroIcons[SERVER_HERO_ICON[h]] || heroIcons.mage; }
+
+/** 결과 화면: 다음 목표(최대 3줄) */
+export function showGoals(lines) {
+  const box = $('oGoals');
+  box.textContent = '';
+  for (const s of lines.slice(0, 3)) { const d = document.createElement('div'); d.textContent = '▶ ' + s; box.appendChild(d); }
 }
 
 // ------------------------------------------------------------ 메테오·주인공 상점 (꾸미기 전용)

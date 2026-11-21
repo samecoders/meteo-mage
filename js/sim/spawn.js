@@ -79,6 +79,7 @@ function updateRing(G, rng) {
       made++;
     }
   }
+  G.lastRingT = G.time;   // 사망 원인 '포위당함' 판정용
   G.events.push({ type: 'ring', n: made, angle: gapAt });
 }
 

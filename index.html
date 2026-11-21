@@ -54,7 +54,8 @@
     <div id="combo"></div>
     <div id="bossArrows"></div>
     <div id="popups"></div>
-    <div id="toast"><img id="toastIco" class="hidden" alt=""><span id="toastText"></span></div>
+    <div id="toasts"></div>
+    <div id="deathCause"></div>
     <!-- 아래쪽 40%: 메테오(마력 링)와 대시 버튼만. 다른 것은 추가하지 않는다 -->
     <div id="hudBottom">
       <div id="rightCol">
@@ -124,9 +125,11 @@
     <div class="panel pixbox">
       <h2 data-i18n="result.title"></h2>
       <div id="oBest" class="newbest hidden" data-i18n="result.newBest"></div>
+      <div id="oCause" class="cause"></div>
       <div id="oStats"></div>
       <div id="oBank" class="bankAdd"></div>
       <div id="oRankStatus" class="status"></div>
+      <div id="oGoals" class="goals"></div>
       <button id="oRetry" class="pix big fit" data-i18n="retry"></button>
       <div class="row2">
         <button id="oRank" class="pix fit" data-i18n="ranking"></button>
@@ -147,7 +150,7 @@
       </div>
       <div id="rankNote" class="status"></div>
       <div id="rankList"></div>
-      <div id="rankMe" class="status"></div>
+      <div id="rankMe" class="rankMe"></div>
       <button id="rBack" class="pix fit" data-i18n="back"></button>
     </div>
   </section>

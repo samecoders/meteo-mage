@@ -81,7 +81,7 @@ export function newGame(opts) {
   G.boltT = 0; G.boltRate = BC.rate; G.boltCount = BC.count; G.boltPierce = BC.pierce;
   G.starT = 0; G.slowT = 0; G.twinT = 0; G.furyT = 0; G.magnetAll = 0;
   G.itemT = CONFIG.items.firstAt; G.orbItems = 0; G.ringItems = 0; G.lensItems = 0;
-  G.chainN = 0; G.chainLast = -99;
+  G.chainN = 0; G.chainLast = -99; G.lastRingT = -99;
   G.skin = skinById(opts.skin || 'fire');
   G.hero = opts.hero || 'mage';
   G.stats = { kills: 0, maxCombo: 0, maxChain: 0, maxMobs: 0, gold: 0, level: 1, exp: 0, expNeed: expNeed(1), bossKills: 0, goldEarned: 0, dmgTaken: {}, deathBy: '', meteors: 0 };

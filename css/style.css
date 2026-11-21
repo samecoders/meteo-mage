@@ -379,3 +379,29 @@ input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yel
 /* 랭킹 불러오는 중: 빈 줄 모양(깜빡임 없이 은은하게) */
 .rrow.skel { grid-template-columns: 36px 1fr 60px; height: 34px; }
 .rrow.skel span { height: 12px; background: var(--slate); opacity: .6; }
+
+/* ===================================================== 4차 1단계: 알림 최대 3개, 사망 원인, 결과 목표, 랭킹 화면 */
+#toasts { position: absolute; left: 50%; top: calc(150px + var(--sat)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; max-width: 92vw; }
+.toast { display: flex; align-items: center; gap: 6px; padding: 5px 12px; font-weight: 800; background: var(--ink); border: 3px solid var(--white); white-space: nowrap; animation: toastIn .15s steps(2); }
+.toast img { width: 24px; height: 24px; image-rendering: pixelated; }
+.toast.out { opacity: 0; transition: opacity .25s steps(3); }
+.toast.warn { border-color: var(--red); color: var(--red); }
+.toast.gold { border-color: var(--yellow); color: var(--yellow); }
+.toast.mana { border-color: var(--cyan); color: var(--cyan); }
+.toast.legend { border-color: var(--yellow); color: var(--yellow); box-shadow: 0 0 12px var(--yellow); }
+.toast.rare { border-color: var(--sky); color: var(--sky); }
+@keyframes toastIn { from { transform: translateY(-8px); opacity: 0; } }
+#deathCause { position: absolute; left: 0; right: 0; top: calc(112px + var(--sat)); text-align: center; font-weight: 900; font-size: 26px; color: var(--red);
+  text-shadow: 3px 3px 0 #000, -1px -1px 0 #000; opacity: 0; pointer-events: none; }
+#deathCause.on { opacity: 1; animation: learnIn .3s steps(3); }
+#deathCause small { display: block; font-size: 14px; color: var(--white); }
+.cause { text-align: center; font-weight: 800; color: var(--red); min-height: 1.2em; }
+.goals { display: flex; flex-direction: column; gap: 3px; font-size: 14px; font-weight: 700; }
+.goals div { background: rgba(255,255,255,.06); padding: 3px 8px; border-left: 4px solid var(--yellow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#oRankStatus.celebrate { color: var(--yellow); font-size: 17px; font-weight: 900; animation: pulse .5s steps(2) 6; }
+.rrow { grid-template-columns: 34px 22px 1fr 22px 20px auto 34px; }
+.rrow .rl { font-size: 12px; color: var(--cyan); text-align: right; }
+.rrow.head { font-size: 11px; opacity: .7; border-bottom: 2px solid var(--slate); }
+.rrow.me { background: rgba(255,224,64,.25); outline: 2px solid var(--yellow); }
+.rankMe { border: 2px solid var(--yellow); background: rgba(255,224,64,.12); padding: 6px 8px; font-size: 14px; font-weight: 800; text-align: center; min-height: 2.6em; }
+.rankMe small { display: block; font-size: 12px; opacity: .85; font-weight: 600; }

@@ -1,7 +1,7 @@
 // 부팅, 화면 크기, 메인 루프(고정 틱 + 보간 렌더), 게임 흐름.
 import { CONFIG, TICK_DT, applyDifficulty } from './config.js';
 import { save } from './save.js';
-import { initI18n, t } from './i18n.js';
+import { initI18n, t, fmt } from './i18n.js';
 import { loadAssets, SPRITE_ORDER, SPR } from './assets.js';
 import { buildAtlas } from './render/atlas.js';
 import { Renderer } from './render/gl.js';
@@ -19,7 +19,8 @@ import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
 import { sfx, unlockAudio, setSound, suspendAudio, setVolumes, setMusicScene, duckMusic, playMusic, playJingle, preloadMusic, audioReady, setOnUnlock } from './audio.js';
 import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
-import { submitScore, flushPending } from './ranking.js';
+import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
+import { HEROES, heroPrice, ownsHero } from './shop.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -77,6 +78,8 @@ function worldToScreen(x, y, out) {
 // ------------------------------------------------------------ 게임 흐름
 function startGame() {
   if (!BENCH_N) unlockAudio();
+  slowUntil = 0;
+  UI.clearToasts(); UI.hideDeathCause();
   newGame({ skin: save.data.skinEquipped, hero: save.data.heroEquipped, bench: BENCH_N > 0, benchCount: BENCH_N });
   if (BENCH_N > 0) setupBench(G, BENCH_N);
   view.camX = G.player.x; view.camY = G.player.y; view.leadX = 0; view.leadY = 0;
@@ -98,6 +101,7 @@ function startGame() {
 
 function toTitle() {
   G.mode = 'title';
+  UI.clearToasts(); UI.hideDeathCause();
   UI.stopTutorial();
   UI.hideLearn();
   UI.showHud(false);
@@ -155,9 +159,34 @@ function showLearn() {
   });
 }
 
+/** 죽은 원인 문구: 내 메테오 / 포위당함 / 늑대 무리 / 보스 / 드래곤 불덩이 … */
+function deathCauseText() {
+  const src = G.stats.deathBy;
+  if (!src) return '';
+  if (src === 'meteor') return t('death.meteor');
+  if (src === 'boss') return t('death.boss');
+  if (src === 'fireball') return t('death.fireball');
+  if (G.time - G.lastRingT < 20) return t('death.ring');          // 포위 무리가 나온 뒤 20초 안
+  return t('death.mob', { mob: t('mob.' + src) });
+}
+
+/** 결과 화면 다음 목표: 내 최고 기록까지 / 캐릭터 해금까지 / 이번 주 10위까지 */
+function goalLines(rec, prevBest, weekTop) {
+  const out = [];
+  if (prevBest && rec.kills < prevBest.kills) out.push(t('goal.best', { n: fmt(prevBest.kills - rec.kills) }));
+  const next = HEROES.filter((h) => !ownsHero(h)).sort((a, b) => heroPrice(a) - heroPrice(b))[0];
+  if (next) {
+    const need = heroPrice(next) - save.data.bank;
+    out.push(need > 0 ? t('goal.hero', { name: t('hero.' + next), n: fmt(need) }) : t('goal.heroReady', { name: t('hero.' + next) }));
+  }
+  if (weekTop && weekTop.length >= 10 && rec.kills < weekTop[9].kills) out.push(t('goal.week10', { n: fmt(weekTop[9].kills - rec.kills) }));
+  return out;
+}
+
 async function gameOver() {
   UI.stopTutorial();
   const s = G.stats;
+  const prevBest = save.data.best && save.data.best.season === CONFIG.ranking.season ? { ...save.data.best } : null;
   const rec = {
     kills: s.kills, surviveSec: Math.floor(G.time), level: s.level, maxCombo: s.maxCombo,
     maxMobs: s.maxMobs, skin: G.skin.id, hero: G.hero, date: Date.now(),
@@ -168,13 +197,19 @@ async function gameOver() {
   const isBest = G.bench ? false : save.addRecord(rec);
   save.write();
   UI.showHud(false);
-  UI.showGameOver(rec, bankAdd, isBest);
+  UI.showGameOver(rec, bankAdd, isBest, deathCauseText());
+  UI.showGoals(goalLines(rec, prevBest, null));
   if (G.bench) return;
   const st = save.data.settings;
   if (!st.nickname) { UI.setRankStatus({ ok: false, noNick: true }); return; }
   UI.setRankStatus({ pending: true });
   const r = await submitScore({ ...rec, nickname: st.nickname, country: st.country || 'XX' });
+  if (G.mode !== 'over') return;                       // 이미 다시 시작함
   UI.setRankStatus(r);
+  if (r.ok) {
+    const wk = await fetchTop('week', null, 10).catch(() => null);
+    if (G.mode === 'over' && wk && !wk.offline) UI.showGoals(goalLines(rec, prevBest, wk.rows));
+  }
 }
 
 function vibrate(ms) { if (save.data.settings.vibrate && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* */ } } }
@@ -213,7 +248,12 @@ function processEvents() {
       case 'bolt': sfx.bolt(); break;
       case 'nearMiss': UI.toast(t('nearMiss'), 'mana'); sfx.nearMiss(); break;
       case 'shieldBreak': UI.toast(t('shield.broken'), 'mana'); sfx.shield(); vibrate(60); break;
-      case 'death': sfx.death(); vibrate(250); break;
+      case 'death': {   // 0.6초 슬로모션 + 죽은 원인 크게
+        sfx.death(); vibrate(250);
+        slowUntil = performance.now() + CONFIG.ui.deathSlowMs;
+        UI.showDeathCause(deathCauseText());
+        break;
+      }
       case 'hurt': sfx.hurt(); vibrate(60); UI.hurtFx(); break;
       case 'gameover': playJingle('gameover', true); gameOver(); break;
     }
@@ -244,6 +284,7 @@ let simAvg = 0, renderAvg = 0, dbgT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = (now - last) / 1000;
+  if (now < slowUntil) dt *= CONFIG.ui.deathSlowScale;   // 죽는 순간 슬로모션
   const frameMs = now - last;
   last = now;
   if (dt > 0.25) dt = 0.25;
@@ -337,7 +378,7 @@ function frame(now) {
 }
 
 // ------------------------------------------------------------ 배경음악: 장면에 맞는 곡(2초 크로스페이드)
-let battleUntil = 0;
+let battleUntil = 0, slowUntil = 0;
 const IN_GAME = { play: 1, paused: 1, levelup: 1, learn: 1, intro: 1 };
 function updateMusic(now) {
   if (!audioReady() || G.bench || AUTOPLAY) return;
@@ -443,8 +484,8 @@ async function boot() {
 
   last = performance.now();
   requestAnimationFrame(frame);
-  // 지난번에 못 올린 기록은 시작 화면에서 다시 보냄(게임 중에는 서버 요청 없음)
-  setTimeout(() => { if (G.mode === 'title' && !BENCH_N && !AUTOPLAY) flushPending().catch(() => {}); }, 3000);
+  // 못 올린 기록(최대 5개)은 30초마다 하나씩 다시 보냄 — 게임 중에는 서버 요청 없음
+  if (!BENCH_N && !AUTOPLAY) startPendingLoop(() => !IN_GAME[G.mode]);
 
   if (BENCH_N > 0) startGame();
   else if (AUTOPLAY) {
