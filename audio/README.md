@@ -11,6 +11,15 @@
 | jingle_meteor.mp3 | 레벨 5 메테오 습득 — 한 번 |
 | jingle_levelup.mp3 | 레벨 업 — 한 번 |
 | jingle_gameover.mp3 | 게임 오버 — 한 번 |
+| bgm_hero_fire / bgm_hero_frost / bgm_hero_earth.mp3 | 캐릭터 테마(평소 곡) — 반복 |
+| bgm_wolf / bgm_golem / bgm_siege.mp3 | 늑대 무리 습격 / 골렘 행진 / 포위 무리 — 반복 |
+| bgm_boss.mp3 | 보스가 필드에 있을 때 — 반복 |
+| bgm_ruin.mp3 | 유적 개방 대습격 — 반복(없으면 bgm_siege) |
+| jingle_boss / jingle_chest / jingle_relic / jingle_resonance.mp3 | 보스 등장 / 상자 / 유물 / 공명 — 한 번 |
+| jingle_meteor_fire / _ice / _poison / _lightning / _dark / _gold.mp3 | 메테오를 부를 때, 장착한 모양별 — 한 번 |
+
+곡 우선순위(높은 순): 무적의 별 > 유적 대습격 > 보스 > 늑대·골렘·포위 습격 > 몹 2만 이상(bgm_battle) > 캐릭터 테마.
+조건이 끝나고 5초 뒤 다음 순위로 1.5초 크로스페이드하고, 돌아갈 때는 멈췄던 위치부터 이어 틉니다. 메모리에는 긴 곡을 최대 4곡까지만 둡니다.
 
 - 앞뒤 무음은 불러올 때 잘라냅니다.
 - 반복 구간은 `js/config.js` 의 `audio.tracks.<이름>.loopStart / loopEnd`(초, 무음 자른 뒤 기준)로 정합니다. 0 이면 처음부터 끝까지.

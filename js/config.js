@@ -565,7 +565,7 @@ export const CONFIG = {
     inGameMusic: 0.7,      // 경기 중에는 효과음이 들리게 음악을 이만큼으로
     duckLevel: 0.35,       // 메테오 폭발 순간 음악을 이만큼으로
     duckTime: 0.3,         // 줄였다 되돌리는 시간(초)
-    crossfade: 2,          // 곡 전환 시간(초)
+    crossfade: 1.5,        // 곡 전환 시간(초)
     battleMobs: 20000,     // 필드 몹이 이보다 많거나 보스가 있으면 위기 음악
     battleRelease: 10,     // 조건이 풀리고 이만큼 지나면 되돌아감
     trimThreshold: 0.003,  // mp3 앞뒤 무음 판정(진폭)
@@ -583,10 +583,20 @@ export const CONFIG = {
       siege:  { file: 'bgm_siege.mp3',  loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
       boss:   { file: 'bgm_boss.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
       ruin:   { file: 'bgm_ruin.mp3',   loop: true, loopStart: 0, loopEnd: 0, fallback: 'battle' },
-      meteor:   { file: 'jingle_meteor.mp3',   loop: false },
+      meteor:   { file: 'jingle_meteor.mp3',   loop: false },   // 레벨 5 메테오 습득
       levelup:  { file: 'jingle_levelup.mp3',  loop: false },
       gameover: { file: 'jingle_gameover.mp3', loop: false },
+      bossj:     { file: 'jingle_boss.mp3',      loop: false, fallback: 'jboss' },
+      chest:     { file: 'jingle_chest.mp3',     loop: false, fallback: 'chest' },
+      relic:     { file: 'jingle_relic.mp3',     loop: false, fallback: 'relic' },
+      resonance: { file: 'jingle_resonance.mp3', loop: false, fallback: 'resonance' },
+      // 메테오를 부를 때: 장착한 모양의 징글(jingle_meteor_<모양>.mp3)
+      ...Object.fromEntries(['fire', 'ice', 'poison', 'lightning', 'dark', 'gold'].map((k) => ['call_' + k, { file: 'jingle_meteor_' + k + '.mp3', loop: false, fallback: 'meteorcall' }])),
     },
+    maxTracks: 4,          // 메모리에 올리는 긴 곡 최대 수
+    hold: 5,               // 조건이 끝나고 이만큼(초) 뒤 다음 순위 곡으로
+    callDuck: 0.5,         // 메테오 징글 동안 배경음악 절반
+    raidMusic: 15,         // 포위·늑대·골렘 습격 곡을 트는 시간(초)
   },
 
   // ------------------------------------------------------------ 랭킹 (Supabase)

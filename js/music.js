@@ -91,6 +91,49 @@ const SCORES = {
     drums: { S: '........x.x.x...' },
     fills: { 1: { C: 'x...............' } },
   },
+  // 징글: 보스 등장 — 낮은 금관과 팀파니
+  jboss: {
+    bpm: 120, loop: false, bars: 2, gain: 1.4,
+    chords: ['Dm', 'A'],
+    melody: { inst: 'brass', notes: 'D3/.5 D3/.5 F3/.5 A3/.5 D4/2 | C#4/1 E4/1 A4/2' },
+    pad: 'str', padVol: 0.5,
+    drums: { T: 'x...x...x.x.xxxx' },
+    fills: { 1: { C: 'x...............', T: 'x...............' } },
+  },
+  // 징글: 상자 열림
+  chest: {
+    bpm: 160, loop: false, bars: 1, gain: 2,
+    chords: ['C'],
+    melody: { inst: 'brass', notes: 'G4/.25 C5/.25 E5/.25 G5/.25 C6/2 r/1' },
+    pad: 'str', padVol: 0.3, arp: 'xxxxxxxx........',
+    drums: { C: '....x...........' },
+  },
+  // 징글: 유물 획득
+  relic: {
+    bpm: 132, loop: false, bars: 2, gain: 1.8,
+    chords: ['F', 'C'],
+    melody: { inst: 'brass', notes: 'F4/.33 A4/.33 C5/.34 F5/1 E5/.5 F5/.5 A5/1 | G5/3 r/1' },
+    melody2: { inst: 'str', notes: 'r/2 C5/2 | E5/3 r/1' },
+    pad: 'str', padVol: 0.5,
+    drums: { T: 'x.......x.......' },
+    fills: { 1: { C: 'x...............' } },
+  },
+  // 징글: 공명 — 신비로운 상승
+  resonance: {
+    bpm: 110, loop: false, bars: 2, gain: 1.8,
+    chords: ['Am', 'E'],
+    melody: { inst: 'harp', notes: 'A4/.25 C5/.25 E5/.25 A5/.25 C6/.25 E6/.25 A6/1.5 | G#6/2 E6/2' },
+    melody2: { inst: 'str', notes: 'E5/2 A5/2 | B5/4' },
+    pad: 'str', padVol: 0.6, arp: 'xxxxxxxxxxxxxxxx',
+    drums: { C: 'x...............' },
+  },
+  // 징글: 메테오 부름(모양별 파일이 없을 때)
+  meteorcall: {
+    bpm: 150, loop: false, bars: 1, gain: 1.6,
+    chords: ['G'],
+    melody: { inst: 'brass', notes: 'G4/.25 B4/.25 D5/.25 G5/1.25 r/2' },
+    drums: { T: 'x.x.x...........' },
+  },
   // 징글: 게임 오버 — 단조로 가라앉음
   gameover: {
     bpm: 76, loop: false, bars: 2,
@@ -297,8 +340,8 @@ function autoLoop(ctx, buf) {
 }
 
 // ------------------------------------------------------------------ 재생기
-const M = { ctx: null, out: null, cur: null, want: null, cache: {}, jingleUntil: 0, source: {}, used: {} };
-const KEEP_LONG = 2;   // 긴 곡 파일(약 3분)은 메모리에 2곡까지만(지금 곡 + 다음 곡). 나머지는 필요할 때 다시 풀어 씀
+const M = { ctx: null, out: null, cur: null, want: null, cache: {}, jingleUntil: 0, source: {}, used: {}, pos: {} };
+const KEEP_LONG = A.maxTracks || 4;   // 긴 곡 파일(약 3분)은 메모리에 최대 4곡. 나머지는 필요할 때 다시 풀어 씀
 
 /** 오래 안 쓴 긴 곡 버퍼를 놓아 메모리 절약(내장 곡·징글은 작아서 그대로) */
 function evictLong() {
@@ -350,15 +393,18 @@ export function playMusic(name) {
     else if (tr.loopStart > 0) { src.loopStart = tr.loopStart; src.loopEnd = buf.duration; }
     const fade = M.cur ? A.crossfade : 0.6;
     g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(1, now + fade);
-    src.connect(g); g.connect(M.out); src.start(now);
+    // 돌아올 때는 멈췄던 위치부터 이어서
+    const from = M.pos[name] && M.pos[name] < buf.duration ? M.pos[name] : 0;
+    src.connect(g); g.connect(M.out); src.start(now, from);
     fadeOut(M.cur, fade);
-    M.cur = { name, src, g };
+    M.cur = { name, src, g, t0: now, from, dur: buf.duration };
     setTimeout(evictLong, (fade + 0.5) * 1000);
   }).catch(() => {});
 }
 function fadeOut(cur, t) {
   if (!cur || !M.ctx) return;
   const now = M.ctx.currentTime;
+  if (cur.dur) M.pos[cur.name] = (cur.from + (now - cur.t0)) % cur.dur;   // 멈춘 위치 기억
   cur.g.gain.cancelScheduledValues(now);
   cur.g.gain.setValueAtTime(cur.g.gain.value, now);
   cur.g.gain.linearRampToValueAtTime(0.0001, now + t);
@@ -368,20 +414,20 @@ export function stopMusic(t) { M.want = null; fadeOut(M.cur, t ?? 0.8); M.cur = 
 export function currentMusic() { return M.want; }
 
 /** 징글 한 번(2~5초): 그동안 배경음악을 낮춤. stopBgm 이면 배경음악을 멈춤(게임 오버) */
-export function playJingle(name, stopBgm) {
-  if (!M.ctx) return;
+export function playJingle(name, stopBgm, duck) {
+  if (!M.ctx || !A.tracks[name]) return;
   if (stopBgm) stopMusic(0.4);
   loadTrack(name).then((buf) => {
-    const ctx = M.ctx, now = ctx.currentTime;
+    const ctx = M.ctx, now = ctx.currentTime, low = duck ?? 0.25;
     const src = ctx.createBufferSource(), g = ctx.createGain();
     src.buffer = buf; g.gain.value = 1;
     src.connect(g); g.connect(M.out); src.start(now);
-    if (M.cur && !stopBgm) {
-      const cg = M.cur.g.gain;
+    if (M.cur && !stopBgm) {   // 징글 동안 배경음악을 낮춤(메테오 징글은 절반)
+      const cg = M.cur.g.gain, end = Math.max(now + 0.3, now + buf.duration - 0.4);
       cg.cancelScheduledValues(now); cg.setValueAtTime(cg.value, now);
-      cg.linearRampToValueAtTime(0.25, now + 0.08);
-      cg.setValueAtTime(0.25, now + buf.duration - 0.6);
-      cg.linearRampToValueAtTime(1, now + buf.duration + 0.4);
+      cg.linearRampToValueAtTime(low, now + 0.08);
+      cg.setValueAtTime(low, end);
+      cg.linearRampToValueAtTime(1, end + 0.5);
     }
   }).catch(() => {});
 }
@@ -394,3 +440,6 @@ export function musicSources() { return { ...M.source }; }
 export function renderBuiltIn(name) { return renderScore(name, M.ctx); }
 /** 디버그·검사용: 버퍼를 바로 한 번 재생 */
 export function previewBuffer(buf) { const s = M.ctx.createBufferSource(); s.buffer = buf; s.connect(M.out); s.start(); return s; }
+/** 디버그·검사용: 지금 메모리에 있는 곡 / 멈춘 위치 */
+export function cachedTracks() { return Object.keys(M.cache); }
+export function resumePositions() { return { ...M.pos }; }

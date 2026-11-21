@@ -88,7 +88,7 @@ export function newGame(opts) {
   G.elitesAlive = 0; G.treasureMul = 1; G.compass2 = false; G.crown = false;
   G.dashQ = []; G.clone = { t: 0, x: 0, y: 0 }; G.springAcc = 0;
   resetRelics(G); LURE.on = false;
-  G.chainN = 0; G.chainLast = -99; G.lastRingT = -99;
+  G.chainN = 0; G.chainLast = -99; G.lastRingT = -99; G.raidKind = null; G.raidUntil = 0;
   G.skin = skinById(opts.skin || 'fire');
   G.hero = CONFIG.characters[opts.hero] ? opts.hero : 'fire_mage';
   G.char = CONFIG.characters[G.hero];

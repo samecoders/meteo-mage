@@ -21,7 +21,7 @@ import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
 import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
 import { HEROES, heroPrice, ownsHero } from './shop.js';
-import { spawnTreasure, treasureTargets, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
+import { spawnTreasure, treasureTargets, siege, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
 import { relicChoices, applyRelic, wouldResonate, RELIC_KEYS } from './relics.js';
 import * as UI from './ui.js';
 
@@ -242,16 +242,17 @@ function processEvents() {
         UI.killPopup(tmp2[0], tmp2[1], e.kills);
         break;
       }
-      case 'launch': case 'launch2': sfx.launch(); break;
+      case 'launch': sfx.launch(); playJingle('call_' + G.skin.id, false, CONFIG.audio.callDuck); break;   // 모양별 메테오 징글, 음악 절반
+      case 'launch2': sfx.launch(); break;
       case 'ringWarn': UI.toast(t('ring.warn'), 'warn'); sfx.ringWarn(); vibrate(60); break;
       case 'manaFull': UI.manaFullFx(); sfx.manaFull(); vibrate(30); break;
       case 'dashReady': UI.dashReadyFx(); sfx.dashReady(); break;
       case 'levelup': showLevelUp(); break;
       case 'relicChoice': showRelicChoice(); break;
-      case 'relic': UI.toast(t('relic.' + e.key + '.name'), 'legend', 'relic_' + e.key); break;
-      case 'resonance': UI.toast(t('relic.resonance') + ' ' + t('res.' + e.key), 'ruin big'); sfx.chest('ruin'); vibrate(120); break;
+      case 'relic': UI.toast(t('relic.' + e.key + '.name'), 'legend', 'relic_' + e.key); playJingle('relic'); break;
+      case 'resonance': UI.toast(t('relic.resonance') + ' ' + t('res.' + e.key), 'ruin big'); playJingle('resonance'); vibrate(120); break;
       case 'phoenix': UI.toast(t('relic.phoenixRevive'), 'legend big'); sfx.learn(); vibrate(200); break;
-      case 'boss': UI.toast(t('boss.appears', { name: t('boss.' + CONFIG.boss.kinds[e.kind].key) }), 'warn'); sfx.boss(); vibrate(80); break;
+      case 'boss': UI.toast(t('boss.appears', { name: t('boss.' + CONFIG.boss.kinds[e.kind].key) }), 'warn'); playJingle('bossj'); vibrate(80); break;
       case 'bossKill': UI.toast(t('boss.killed'), 'gold'); sfx.bossKill(); break;
       case 'bossCharge': sfx.charge(); break;
       case 'summon': sfx.summon(); break;
@@ -268,10 +269,10 @@ function processEvents() {
       case 'treasureSpawn': if (e.kind !== 'wood') UI.toast(t('treasure.spawn.' + e.kind), e.kind === 'ruin' ? 'ruin' : 'treasure'); break;
       case 'treasureOpen':
         UI.toast(t('treasure.open.' + e.kind), (e.kind === 'ruin' ? 'ruin' : 'treasure') + ' big');
-        sfx.chest(e.kind); vibrate(e.kind === 'wood' ? 40 : 120);
+        playJingle('chest'); vibrate(e.kind === 'wood' ? 40 : 120);
         if (e.kind === 'ruin') { UI.ruinSky(); setTimeout(() => UI.toast(t('treasure.siege'), 'warn big'), 1000); }
         break;
-      case 'mimic': UI.toast(t('treasure.mimic'), 'warn big'); sfx.boss(); vibrate(100); break;
+      case 'mimic': UI.toast(t('treasure.mimic'), 'warn big'); playJingle('bossj'); vibrate(100); break;
       case 'mimicKill': break;   // 보상 알림은 treasureOpen(kind mimic)
       case 'rune': UI.toast(t('treasure.rune', { n: e.n, of: e.of }), 'ruin'); sfx.rune(); break;
       case 'elitesCleared': UI.toast(t('treasure.elites'), 'treasure'); break;
@@ -426,6 +427,7 @@ function treasurePing(now) {
 
 // ------------------------------------------------------------ 배경음악: 장면에 맞는 곡(2초 크로스페이드)
 let battleUntil = 0, slowUntil = 0;
+const musicHold = {};
 const IN_GAME = { play: 1, paused: 1, levelup: 1, learn: 1, intro: 1, relic: 1 };
 function updateMusic(now) {
   if (!audioReady() || G.bench || AUTOPLAY) return;
@@ -433,13 +435,22 @@ function updateMusic(now) {
   let want = currentMusic();
   if (G.mode === 'title') want = UI.musicOverride() || 'title';   // 캐릭터 화면: 고른 캐릭터 테마
   else if (inGame) {
-    if (G.starT > 0 && G.player.alive) want = 'star';           // 무적의 별: 끝나면 이전 곡으로
-    else {
-      let boss = false;
-      for (let i = 0; i < B.length; i++) if (B[i].active) { boss = true; break; }
-      const crisis = boss || M.n > A.battleMobs;               // 위기: 보스가 있거나 몹이 2만 넘음
-      if (crisis) battleUntil = now + A.battleRelease * 1000;  // 풀리고 10초 뒤 되돌아감
-      want = crisis || now < battleUntil ? 'battle' : 'field';
+    // 우선순위(높은 순): 별 > 유적 대습격 > 보스 > 습격(늑대·골렘·포위) > 몹 2만 이상 > 캐릭터 테마.
+    // 조건이 끝나도 hold(5초) 동안은 그 곡을 유지
+    let boss = false;
+    for (let i = 0; i < B.length; i++) if (B[i].active) { boss = true; break; }
+    const raid = G.raidKind && G.time < G.raidUntil ? G.raidKind : null;
+    const conds = [
+      ['star', G.starT > 0 && G.player.alive],
+      [A.tracks.ruin ? 'ruin' : 'siege', siege.siegeT > 0],
+      ['boss', boss],
+      [raid || '_raid', !!raid],
+      ['battle', M.n >= A.battleMobs],
+    ];
+    want = (G.char && G.char.theme) || 'field';
+    for (const [name, on] of conds) {
+      if (on) musicHold[name] = now + A.hold * 1000;
+      if (on || now < (musicHold[name] || 0)) { if (name !== '_raid') { want = name; break; } }
     }
   }
   setMusicScene(inGame);
@@ -449,9 +460,10 @@ function onAudioUnlocked() {
   if (G.bench || AUTOPLAY) return;   // 측정·자동 플레이는 음악 없음
   updateMusic(performance.now());
   // 타이틀 곡 먼저, 나머지는 천천히 미리(게임 시작을 막지 않음)
-  setTimeout(() => preloadMusic(['field']), 1500);
-  setTimeout(() => preloadMusic(['levelup', 'meteor', 'battle']), 4000);
-  setTimeout(() => preloadMusic(['star', 'gameover']), 7000);
+  const theme = (CONFIG.characters[save.data.heroEquipped] || CONFIG.characters.fire_mage).theme;
+  setTimeout(() => preloadMusic([theme]), 1500);
+  setTimeout(() => preloadMusic(['levelup', 'meteor', 'chest', 'call_' + save.data.skinEquipped]), 4000);
+  setTimeout(() => preloadMusic(['relic', 'resonance', 'bossj', 'gameover']), 7000);
 }
 
 // ------------------------------------------------------------ 부팅

@@ -81,6 +81,7 @@ function updateRing(G, rng) {
     }
   }
   G.lastRingT = G.time;   // 사망 원인 '포위당함' 판정용
+  G.raidKind = 'siege'; G.raidUntil = G.time + CONFIG.audio.raidMusic;   // 습격 음악(포위)
   G.events.push({ type: 'ring', n: made, angle: gapAt });
 }
 
