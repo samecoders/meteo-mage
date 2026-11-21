@@ -176,5 +176,16 @@
   "goal.best": "내 최고 기록까지 {n}킬",
   "goal.hero": "{name} 해금까지 {n}골드",
   "goal.heroReady": "{name} 해금 가능!",
-  "goal.week10": "이번 주 10위까지 {n}킬"
+  "goal.week10": "이번 주 10위까지 {n}킬",
+  "treasure.spawn.wood": "나무 상자 발견!",
+  "treasure.spawn.gold": "황금 상자 발견! 엘리트가 지키고 있다",
+  "treasure.spawn.ruin": "고대 유적 발견! 룬석 3개를 모으세요",
+  "treasure.open.wood": "나무 상자! 경험치와 아이템",
+  "treasure.open.gold": "황금 상자! 레벨 업",
+  "treasure.open.ruin": "유적 개방! 레벨 +2",
+  "treasure.open.mimic": "미믹 처치! 레벨 업",
+  "treasure.siege": "대습격! 10초 버티세요",
+  "treasure.mimic": "미믹이다!",
+  "treasure.rune": "룬석 {n}/{of}",
+  "treasure.elites": "엘리트 전멸! 황금 상자가 열린다"
 }

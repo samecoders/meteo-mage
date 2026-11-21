@@ -176,5 +176,16 @@
   "goal.best": "{n} kill lagi ke rekormu",
   "goal.hero": "{n} emas lagi untuk membuka {name}",
   "goal.heroReady": "{name} bisa dibuka!",
-  "goal.week10": "{n} kill lagi ke 10 besar minggu ini"
+  "goal.week10": "{n} kill lagi ke 10 besar minggu ini",
+  "treasure.spawn.wood": "Peti kayu ditemukan!",
+  "treasure.spawn.gold": "Peti emas ditemukan! Dijaga elit",
+  "treasure.spawn.ruin": "Reruntuhan kuno! Kumpulkan 3 batu rune",
+  "treasure.open.wood": "Peti kayu! EXP dan item",
+  "treasure.open.gold": "Peti emas! Naik level",
+  "treasure.open.ruin": "Reruntuhan terbuka! Level +2",
+  "treasure.open.mimic": "Mimik dikalahkan! Naik level",
+  "treasure.siege": "Serbuan besar! Bertahan 10 detik",
+  "treasure.mimic": "Itu mimik!",
+  "treasure.rune": "Batu rune {n}/{of}",
+  "treasure.elites": "Elit habis! Peti emas terbuka"
 }

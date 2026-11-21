@@ -10,6 +10,7 @@ import { M, B } from './sim/mobs.js';
 import { expNeed } from './upgrade.js';
 import { items as fieldItems, KINDS, RARITY } from './items.js';
 import { dashCooldown } from './dash.js';
+import { treasureTargets, TREASURE_KEYS } from './treasure.js';
 
 const $ = (id) => document.getElementById(id);
 let H = null;
@@ -309,6 +310,7 @@ export function updateHud(G, now, input) {
   const p = G.player;
   drawHearts(p);
   updateEffects(G);
+  updateCompass(G);
   updateChain(G);
   toggle('mana', 'locked', !G.meteorLearned);
   const sp = G.player.shield ? '✔' : fmt(shieldPrice(G));
@@ -379,6 +381,28 @@ function updateEffects(G) {
     d.classList.toggle('blink', !!e.blink && v < e.blink);
   }
 }
+
+// ------------------------------------------------------------ 보물 나침반: 가장 가까운 보물 방향 + 거리(m). 상단 가운데만
+const COMPASS_COL = { wood: '#d9a066', gold: '#ffe040', ruin: '#c08aff' };
+function updateCompass(G) {
+  const el = $('compass'), list = treasureTargets(G);
+  if (!list.length) { toggle('compass', 'hidden', true); return; }
+  toggle('compass', 'hidden', false);
+  const setOne = (arrow, label, tg) => {
+    const p = G.player, a = Math.atan2(tg.y - p.y, tg.x - p.x), key = TREASURE_KEYS[tg.t.kind];
+    arrow.style.transform = `rotate(${a.toFixed(2)}rad)`;
+    arrow.style.setProperty('--c', COMPASS_COL[key]);
+    label.style.setProperty('--c', COMPASS_COL[key]);
+    label.textContent = Math.round(tg.d / CONFIG.treasure.unitsPerMeter) + 'm';
+  };
+  const arrows = el.querySelectorAll('.carrow');
+  setOne(arrows[0], $('compassD'), list[0]);
+  const two = !!G.compass2 && list.length > 1;    // 3단계 '탐사자의 렌즈': 두 번째로 가까운 보물도
+  arrows[1].classList.toggle('hidden', !two); $('compassD2').classList.toggle('hidden', !two);
+  if (two) setOne(arrows[1], $('compassD2'), list[1]);
+  toggle('compass', 'near', list[0].d < 200);
+}
+export function ruinSky() { const el = $('ruinSky'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
 
 // ------------------------------------------------------------ 연속 킬 콤보(2초 안에 이어지면 유지)
 let chainShown = 0;
@@ -890,7 +914,7 @@ function setupDebugItems() {
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugItem && H.debugItem(k); });
     box.appendChild(b);
   }
-  for (const [label, fn] of [['Lv+', 'debugLevel'], ['God', 'debugGod']]) {
+  for (const [label, fn] of [['Lv+', 'debugLevel'], ['God', 'debugGod'], ['상자', 'debugWood'], ['미믹', 'debugMimic'], ['황금', 'debugGold'], ['유적', 'debugRuin']]) {
     const b = document.createElement('button');
     b.textContent = label;
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H[fn] && H[fn](b); });

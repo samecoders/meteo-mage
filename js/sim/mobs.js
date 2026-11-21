@@ -23,6 +23,7 @@ export const M = {
   hp: null,
   type: null, phase: null, flash: null, dead: null,
   cell: null,             // 격자 칸 번호(격자 만들 때 채움)
+  elite: null,            // 0 = 일반, 1~ = 황금 상자 엘리트(지키는 상자 번호+1)
   hpMul: 1,               // 새로 생기는 몹 체력 배율(초반 완화) — 틱에서 game.js 가 정함
   speedMul: 1,            // 모든 몹 속도 배율(초반 완화 × 시간의 모래시계)
 };
@@ -34,11 +35,14 @@ export function allocMobs(cap) {
   M.vx = new Float32Array(cap); M.vy = new Float32Array(cap);
   M.hp = new Float32Array(cap);
   M.type = new Uint8Array(cap); M.phase = new Uint8Array(cap);
-  M.flash = new Uint8Array(cap); M.dead = new Uint8Array(cap);
+  M.flash = new Uint8Array(cap); M.dead = new Uint8Array(cap); M.elite = new Uint8Array(cap);
   M.cell = new Int32Array(cap);
 }
 
-export function clearMobs() { M.n = 0; M.dead.fill(0); }
+export function clearMobs() { M.n = 0; M.dead.fill(0); M.elite.fill(0); }
+
+/** 엘리트가 지키는 자리(상자 번호+1 로 찾음). gx/gy 가 NaN 이면 그냥 쫓아옴 */
+export const GUARD = { x: new Float32Array(256).fill(NaN), y: new Float32Array(256).fill(NaN), r2: 0 };
 
 // 공간 재정렬용 임시 배열(미리 할당)
 let tmpF = null, tmpU = null, tmpI = null;
@@ -52,7 +56,7 @@ export function reorderMobs(order) {
   if (!tmpF || tmpF.length < M.cap) { tmpF = new Float32Array(M.cap); tmpU = new Uint8Array(M.cap); tmpI = new Int32Array(M.cap); }
   permF(M.x, order, n); permF(M.y, order, n); permF(M.px, order, n); permF(M.py, order, n);
   permF(M.vx, order, n); permF(M.vy, order, n); permF(M.hp, order, n);
-  permU(M.type, order, n); permU(M.phase, order, n); permU(M.flash, order, n); permU(M.dead, order, n);
+  permU(M.type, order, n); permU(M.phase, order, n); permU(M.flash, order, n); permU(M.dead, order, n); permU(M.elite, order, n);
   const c = M.cell;
   for (let k = 0; k < n; k++) tmpI[k] = c[order[k]];
   for (let k = 0; k < n; k++) c[k] = tmpI[k];
@@ -67,7 +71,7 @@ export function addMob(x, y, t, phase) {
   M.x[i] = x; M.y[i] = y; M.px[i] = x; M.py[i] = y;
   M.vx[i] = 0; M.vy[i] = 0;
   M.hp[i] = MAXHP[t] * M.hpMul;
-  M.type[i] = t; M.phase[i] = phase; M.flash[i] = 0; M.dead[i] = 0;
+  M.type[i] = t; M.phase[i] = phase; M.flash[i] = 0; M.dead[i] = 0; M.elite[i] = 0;
   return i;
 }
 
@@ -77,7 +81,7 @@ function copyMob(from, to) {
   M.vx[to] = M.vx[from]; M.vy[to] = M.vy[from];
   M.hp[to] = M.hp[from];
   M.type[to] = M.type[from]; M.phase[to] = M.phase[from];
-  M.flash[to] = M.flash[from]; M.dead[to] = M.dead[from];
+  M.flash[to] = M.flash[from]; M.dead[to] = M.dead[from]; M.elite[to] = M.elite[from];
 }
 
 /** 죽은 몹 제거. onDead(i) 는 지워지기 직전에 호출(연출용) */
@@ -88,7 +92,7 @@ export function compactMobs(onDead) {
       onDead(i);
       const last = --M.n;
       if (i !== last) copyMob(last, i);
-      M.dead[last] = 0;
+      M.dead[last] = 0; M.elite[last] = 0;
     } else i++;
   }
 }
@@ -98,7 +102,7 @@ export function compactMobs(onDead) {
  * 몹끼리 직접 비교하지 않음. 멀리 있는 몹은 압력 생략, 너무 멀면 반대편으로 재배치.
  */
 export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
-  const n = M.n, X = M.x, Y = M.y, VX = M.vx, VY = M.vy, TY = M.type, FL = M.flash, PH = M.phase;
+  const n = M.n, X = M.x, Y = M.y, VX = M.vx, VY = M.vy, TY = M.type, FL = M.flash, PH = M.phase, EL = M.elite;
   const cfg = CONFIG.mobs, smul = M.speedMul;
   // 압력은 짝/홀 몹을 번갈아 2배 세기로 계산(관성으로 부드러워짐) → 비용 절반
   const accel = cfg.accel, pk = cfg.pressureK * 2, pcap = cfg.pressureCap * 2, far = cfg.farSkip;
@@ -109,7 +113,7 @@ export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
     const xi = X[i], yi = Y[i];
     const dx = plx - xi, dy = ply - yi;
     const d2 = dx * dx + dy * dy;
-    if (d2 > desp2) { // 반대편 화면 밖으로 옮겨 다시 쫓아오게
+    if (d2 > desp2 && !EL[i]) { // 반대편 화면 밖으로 옮겨 다시 쫓아오게(엘리트는 상자를 지키므로 제외)
       const d = Math.sqrt(d2);
       const r = spawnR * (0.95 + rng() * 0.15);
       const side = (rng() - 0.5) * 0.6 * spawnR;
@@ -119,8 +123,18 @@ export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
       continue;
     }
     const t = TY[i], s = SPEED[t] * smul;
-    const k = s / (Math.sqrt(d2) + 0.001);
+    let k = s / (Math.sqrt(d2) + 0.001);
     let tx = dx * k, ty = dy * k;
+    if (EL[i]) { // 엘리트: 법사가 가까이 오기 전에는 상자 곁을 지킴
+      const gx = GUARD.x[EL[i]], gy = GUARD.y[EL[i]];
+      if (gx === gx) {
+        const ex = plx - gx, ey = ply - gy;
+        if (ex * ex + ey * ey > GUARD.r2) {
+          const hx = gx + Math.cos(PH[i] * 0.0246) * 90 - xi, hy = gy + Math.sin(PH[i] * 0.0246) * 90 - yi, hd = Math.sqrt(hx * hx + hy * hy) + 0.001;
+          k = Math.min(s, hd * 2) / hd; tx = hx * k; ty = hy * k;
+        }
+      }
+    }
     if (WOBBLE[t]) { // 박쥐: 좌우로 흔들며 날기
       let f = time * 1.1 + PH[i] * 0.0039;          // 삼각파(사인보다 싸다)
       f -= f | 0;

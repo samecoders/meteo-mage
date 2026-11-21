@@ -176,5 +176,16 @@
   "goal.best": "{n} éliminations avant votre record",
   "goal.hero": "{n} or pour débloquer {name}",
   "goal.heroReady": "{name} peut être débloqué !",
-  "goal.week10": "{n} éliminations pour le top 10 de la semaine"
+  "goal.week10": "{n} éliminations pour le top 10 de la semaine",
+  "treasure.spawn.wood": "Coffre en bois !",
+  "treasure.spawn.gold": "Coffre doré ! Des élites le gardent",
+  "treasure.spawn.ruin": "Ruine antique ! Ramassez 3 pierres runiques",
+  "treasure.open.wood": "Coffre en bois ! EXP et objets",
+  "treasure.open.gold": "Coffre doré ! Niveau supérieur",
+  "treasure.open.ruin": "Ruine ouverte ! Niveau +2",
+  "treasure.open.mimic": "Mimique vaincue ! Niveau supérieur",
+  "treasure.siege": "Grand assaut ! Tenez 10 secondes",
+  "treasure.mimic": "Une mimique !",
+  "treasure.rune": "Pierre runique {n}/{of}",
+  "treasure.elites": "Élites vaincues ! Le coffre doré s'ouvre"
 }

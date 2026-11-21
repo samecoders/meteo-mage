@@ -176,5 +176,16 @@
   "goal.best": "{n} bajas para tu récord",
   "goal.hero": "{n} de oro para desbloquear a {name}",
   "goal.heroReady": "¡Puedes desbloquear a {name}!",
-  "goal.week10": "{n} bajas para el top 10 semanal"
+  "goal.week10": "{n} bajas para el top 10 semanal",
+  "treasure.spawn.wood": "¡Cofre de madera!",
+  "treasure.spawn.gold": "¡Cofre dorado! Lo custodian élites",
+  "treasure.spawn.ruin": "¡Ruina antigua! Reúne 3 piedras rúnicas",
+  "treasure.open.wood": "¡Cofre de madera! EXP y objetos",
+  "treasure.open.gold": "¡Cofre dorado! Subes de nivel",
+  "treasure.open.ruin": "¡Ruina abierta! Nivel +2",
+  "treasure.open.mimic": "¡Mímico derrotado! Subes de nivel",
+  "treasure.siege": "¡Gran asalto! Aguanta 10 segundos",
+  "treasure.mimic": "¡Es un mímico!",
+  "treasure.rune": "Piedra rúnica {n}/{of}",
+  "treasure.elites": "¡Élites eliminados! Se abre el cofre dorado"
 }

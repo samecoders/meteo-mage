@@ -9,6 +9,7 @@ import { createPlayer, resetPlayer } from './player.js';
 import { isDashing } from './dash.js';
 import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer, explode } from './meteor.js';
 import { clearBolts, updateBolts } from './bolts.js';
+import { resetTreasures, updateTreasures, onEliteDead, onMimicDead } from './treasure.js';
 import { clearOrbs, updateOrbs } from './orbs.js';
 import { addExp, expNeed } from './upgrade.js';
 import { clearEffects, addCorpse, addRing, addShake, addParticle, addSpriteFx } from './render/effects.js';
@@ -81,6 +82,7 @@ export function newGame(opts) {
   G.boltT = 0; G.boltRate = BC.rate; G.boltCount = BC.count; G.boltPierce = BC.pierce;
   G.starT = 0; G.slowT = 0; G.twinT = 0; G.furyT = 0; G.magnetAll = 0;
   G.itemT = CONFIG.items.firstAt; G.orbItems = 0; G.ringItems = 0; G.lensItems = 0;
+  G.elitesAlive = 0; G.treasureMul = 1;
   G.chainN = 0; G.chainLast = -99; G.lastRingT = -99;
   G.skin = skinById(opts.skin || 'fire');
   G.hero = opts.hero || 'mage';
@@ -88,7 +90,7 @@ export function newGame(opts) {
   G.levelQueue.length = 0; G.levelUpWait = 0;
   G.shieldBought = 0; G.goldFrac = 0; G.hitstop = 0; G.dying = 0;
   G.events.length = 0; G.taps.length = 0;
-  clearMobs(); clearBosses(); clearOrbs(); clearItems(); clearBolts(); resetMeteors(); clearEffects();
+  clearMobs(); clearBosses(); clearOrbs(); clearItems(); clearBolts(); resetMeteors(); clearEffects(); resetTreasures();
   M.hpMul = CONFIG.mobs.easeHp; M.speedMul = CONFIG.mobs.easeSpeed * CONFIG.mobs.speedMul;
   resetSpawner(G.rng);
   updateZoom();
@@ -210,6 +212,7 @@ const bossHooks = {
 /** 보스가 죽었을 때: 보물상자, 슬라임 왕은 슬라임으로 터짐 */
 function onBossDeath(b) {
   const K = CONFIG.boss.kinds[b.kind];
+  if (K.key === 'mimic') { onMimicDead(G, b); G.events.push({ type: 'mimicKill', x: b.x, y: b.y }); return; }   // 미믹: 황금 상자 보상
   dropItem(ITEM_CHEST, b.x, b.y);
   if (K.split) {
     const rng = G.rng;
@@ -254,6 +257,7 @@ function awardKills(kills, expSum, isCombo, bossKills) {
 }
 
 function onDeadMob(i) {
+  if (M.elite[i]) onEliteDead(G, M.elite[i]);
   if (M.dead[i] === 1) addCorpse(M.x[i], M.y[i], M.type[i], G.corpseX, G.corpseY, true);
   else addCorpse(M.x[i], M.y[i], M.type[i], M.x[i], M.y[i] - 1, false);
 }
@@ -339,6 +343,7 @@ export function tick() {
   const orbGain = updateOrbs(G, dt);
   updateItems(G, dt, isDashing(p));
   updateItemSpawner(G, dt);
+  updateTreasures(G, dt);
   // 하트 자동 회복: 마지막으로 맞고 6초 뒤부터 5초마다 1칸
   if (p.alive) {
     p.sinceHurt += dt;

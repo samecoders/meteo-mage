@@ -7,6 +7,7 @@ const S = CONFIG.spawn;
 const NT = CONFIG.mobs.types.length;
 
 const TYPE_KEYS = CONFIG.mobs.types.map((t) => t.key);
+const ROTATION = CONFIG.boss.kinds.map((k, i) => (k.special ? -1 : i)).filter((i) => i >= 0);
 
 export const spawner = {
   ringT: 0, ringWarned: false, ringAngle: 0,
@@ -130,7 +131,7 @@ export function updateSpawner(G, dt, spawnR) {
     spawner.nextBoss += CONFIG.boss.interval;
     const idx = spawner.bossIndex++;
     const hp = CONFIG.boss.hp * Math.pow(CONFIG.boss.hpGrowth, idx);
-    const kind = idx % CONFIG.boss.kinds.length;
+    const kind = ROTATION[idx % ROTATION.length];   // 미믹 같은 특수 보스는 순서에서 뺌
     const a = rng() * Math.PI * 2;
     if (addBoss(G.player.x + Math.cos(a) * spawnR * 0.85, G.player.y + Math.sin(a) * spawnR * 0.85, hp, kind)) {
       G.events.push({ type: 'boss', kind });

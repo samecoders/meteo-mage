@@ -21,6 +21,7 @@ import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
 import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
 import { HEROES, heroPrice, ownsHero } from './shop.js';
+import { spawnTreasure, treasureTargets, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -244,6 +245,17 @@ function processEvents() {
         vibrate(e.rarity === 'legend' ? 80 : 30);
         break;
       case 'heal': sfx.heal(); break;
+      // ---- 보물
+      case 'treasureSpawn': if (e.kind !== 'wood') UI.toast(t('treasure.spawn.' + e.kind), e.kind === 'ruin' ? 'ruin' : 'treasure'); break;
+      case 'treasureOpen':
+        UI.toast(t('treasure.open.' + e.kind), (e.kind === 'ruin' ? 'ruin' : 'treasure') + ' big');
+        sfx.chest(e.kind); vibrate(e.kind === 'wood' ? 40 : 120);
+        if (e.kind === 'ruin') { UI.ruinSky(); setTimeout(() => UI.toast(t('treasure.siege'), 'warn big'), 1000); }
+        break;
+      case 'mimic': UI.toast(t('treasure.mimic'), 'warn big'); sfx.boss(); vibrate(100); break;
+      case 'mimicKill': break;   // 보상 알림은 treasureOpen(kind mimic)
+      case 'rune': UI.toast(t('treasure.rune', { n: e.n, of: e.of }), 'ruin'); sfx.rune(); break;
+      case 'elitesCleared': UI.toast(t('treasure.elites'), 'treasure'); break;
       case 'kill': if (e.k > 0) sfx.kill(e.n); break;
       case 'bolt': sfx.bolt(); break;
       case 'nearMiss': UI.toast(t('nearMiss'), 'mana'); sfx.nearMiss(); break;
@@ -363,6 +375,7 @@ function frame(now) {
 
   if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro' || G.mode === 'learn') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
   updateMusic(now);
+  treasurePing(now);
   if (ticks) simAvg = simAvg * 0.9 + (simMs / ticks) * 0.1;
   renderAvg = renderAvg * 0.9 + renderMs * 0.1;
   if (G.bench) benchFrame(frameMs, simMs, ticks, renderMs);
@@ -375,6 +388,21 @@ function frame(now) {
       `internal ${view.iw}x${view.ih}  zoom ${G.zoomShort}  t ${G.time.toFixed(1)}s\n` +
       `drawn ${batches.mobs.count}  near ${G.nearCount}` + (bench.report ? '\n' + bench.report : ''));
   }
+}
+
+// ------------------------------------------------------------ 보물이 화면 안이면 "띠링" — 가까울수록 빨라짐
+let pingNext = 0;
+function treasurePing(now) {
+  if (G.mode !== 'play' || !G.player.alive || G.bench || AUTOPLAY) return;
+  const list = treasureTargets(G);
+  if (!list.length) return;
+  const tg = list[0], T = CONFIG.treasure;
+  worldToScreen(tg.x, tg.y, tmp2);
+  const onScreen = tmp2[0] > 0 && tmp2[1] > 0 && tmp2[0] < view.cssW && tmp2[1] < view.cssH;
+  if (!onScreen || tg.d > T.pingNear) return;
+  if (now < pingNext) return;
+  pingNext = now + 250 + 1000 * (tg.d / T.pingNear);
+  sfx.ping(1 - tg.d / T.pingNear);
 }
 
 // ------------------------------------------------------------ 배경음악: 장면에 맞는 곡(2초 크로스페이드)
@@ -474,6 +502,10 @@ async function boot() {
     debugItem: (key) => { if (G.mode !== 'play') return; const p = G.player; dropItem(KIND[key], p.x + p.faceX * 60, p.y + p.faceY * 60); },
     debugLevel: () => { if (G.mode !== 'play') return; G.addExp(G.stats.expNeed - G.stats.exp + 0.01); },
     debugGod: (b) => { G.god = !G.god; b.style.background = G.god ? '#e04040' : ''; },
+    debugWood: () => { if (G.mode === 'play') spawnTreasure(G, KIND_WOOD, { near: true, mimic: false }); },
+    debugMimic: () => { if (G.mode === 'play') spawnTreasure(G, KIND_WOOD, { near: true, mimic: true }); },
+    debugGold: () => { if (G.mode === 'play') spawnTreasure(G, KIND_GOLD, { near: true }); },
+    debugRuin: () => { if (G.mode === 'play') spawnTreasure(G, KIND_RUIN, { near: true }); },
   });
 
   setupNativeApp();

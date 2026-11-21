@@ -176,5 +176,16 @@
   "goal.best": "距離個人最佳還差{n}擊殺",
   "goal.hero": "距離解鎖{name}還差{n}金幣",
   "goal.heroReady": "可以解鎖{name}了！",
-  "goal.week10": "距離本週前10還差{n}擊殺"
+  "goal.week10": "距離本週前10還差{n}擊殺",
+  "treasure.spawn.wood": "發現木箱！",
+  "treasure.spawn.gold": "發現黃金寶箱！有精英守衛",
+  "treasure.spawn.ruin": "發現古代遺跡！收集3塊符文石",
+  "treasure.open.wood": "木箱！經驗和道具",
+  "treasure.open.gold": "黃金寶箱！升級",
+  "treasure.open.ruin": "遺跡開啟！等級+2",
+  "treasure.open.mimic": "擊敗寶箱怪！升級",
+  "treasure.siege": "大襲擊！堅持10秒",
+  "treasure.mimic": "是寶箱怪！",
+  "treasure.rune": "符文石 {n}/{of}",
+  "treasure.elites": "精英全滅！黃金寶箱打開了"
 }

@@ -176,5 +176,16 @@
   "goal.best": "自己ベストまであと{n}キル",
   "goal.hero": "{name}の解放まであと{n}ゴールド",
   "goal.heroReady": "{name}を解放できます！",
-  "goal.week10": "今週10位まであと{n}キル"
+  "goal.week10": "今週10位まであと{n}キル",
+  "treasure.spawn.wood": "木の宝箱を発見！",
+  "treasure.spawn.gold": "黄金の宝箱を発見！エリートが守っている",
+  "treasure.spawn.ruin": "古代遺跡を発見！ルーン石を3つ集めよう",
+  "treasure.open.wood": "木の宝箱！経験値とアイテム",
+  "treasure.open.gold": "黄金の宝箱！レベルアップ",
+  "treasure.open.ruin": "遺跡開放！レベル+2",
+  "treasure.open.mimic": "ミミックを倒した！レベルアップ",
+  "treasure.siege": "大襲撃！10秒耐えろ",
+  "treasure.mimic": "ミミックだ！",
+  "treasure.rune": "ルーン石 {n}/{of}",
+  "treasure.elites": "エリート全滅！黄金の宝箱が開く"
 }

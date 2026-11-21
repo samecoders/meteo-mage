@@ -176,5 +176,16 @@
   "goal.best": "{n} kills to your best",
   "goal.hero": "{n} gold to unlock {name}",
   "goal.heroReady": "{name} can be unlocked!",
-  "goal.week10": "{n} kills to this week's top 10"
+  "goal.week10": "{n} kills to this week's top 10",
+  "treasure.spawn.wood": "Wooden chest found!",
+  "treasure.spawn.gold": "Golden chest found! Elites guard it",
+  "treasure.spawn.ruin": "Ancient ruin found! Collect 3 rune stones",
+  "treasure.open.wood": "Wooden chest! EXP and items",
+  "treasure.open.gold": "Golden chest! Level up",
+  "treasure.open.ruin": "Ruin unsealed! Level +2",
+  "treasure.open.mimic": "Mimic slain! Level up",
+  "treasure.siege": "Great assault! Survive 10 seconds",
+  "treasure.mimic": "It's a mimic!",
+  "treasure.rune": "Rune stone {n}/{of}",
+  "treasure.elites": "Elites wiped out! The golden chest opens"
 }

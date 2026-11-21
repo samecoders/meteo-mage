@@ -143,6 +143,8 @@ export const CONFIG = {
       { key: 'lich',      sprite: 'boss_lich',      speed: 56, every: 6,   summon: 36 },
       // 드래곤: every 초마다 법사가 갈 자리로 불덩이 발사(대시로 통과 가능, 쉴드로 막음)
       { key: 'dragon',    sprite: 'boss_dragon',    speed: 72, every: 3.2, fireSpeed: 270, fireRadius: 13, fireLife: 4, fireDmg: 20 },
+      // 미믹: 나무 상자가 변한 작은 보스(정기 보스 순서에는 안 나옴 — special)
+      { key: 'mimic',     sprite: 'mimic',          speed: 84, special: true },
     ],
   },
 
@@ -202,6 +204,50 @@ export const CONFIG = {
       { key: 'fury',      rarity: 'legend' },
       { key: 'chest',     rarity: 'boss' },
     ],
+  },
+
+  // ------------------------------------------------------------ 보물 탐험 (찾아가서 열어야 하는 보물)
+  // 등장 시간·거리 규칙은 모두에게 같고 위치만 판마다 무작위(시드 난수). 보상은 그 판에만 유효
+  treasure: {
+    max: 8,                // 동시에 있을 수 있는 보물 수
+    openRadius: 30,        // 상자 위에 있다고 보는 거리
+    wood: {
+      first: 40, everyMin: 50, everyMax: 70, distMin: 300, distMax: 700,
+      openTime: 1.0,       // 1초 머물면 열림(원형 게이지)
+      decay: 0.5,          // 벗어나면 게이지가 초당 이만큼(비율) 줄어듦
+      expPct: 0.6,         // 보상: 현재 레벨 필요 경험치의 60%
+      items: 2,            // + 맵 아이템 2개가 튀어나옴
+      mimicChance: 0.1,    // 10% 는 미믹
+      life: 120,           // 안 열면 사라짐(초)
+    },
+    mimic: {
+      wakeAt: 0.2,         // 게이지가 이만큼 차면 미믹으로 변함
+      hp: 45, hpGrowth: 1.25,   // 체력 = hp × hpGrowth^(분)
+      summon: 70, summonRadius: 150,   // 변할 때 주변에 몹 무리 소환
+    },
+    gold: {
+      first: 240, everyMin: 90, everyMax: 120, distMin: 500, distMax: 900,
+      openTime: 1.5,       // 엘리트가 남아 있으면 1.5초 머물러 강제로 열기
+      elitesMin: 8, elitesMax: 15,
+      eliteHp: 10,         // 엘리트 체력 배율(같은 종류 일반 몹 대비)
+      eliteRing: 90,       // 상자를 둘러싼 거리
+      guardRadius: 420,    // 법사가 이 거리 안에 오면 엘리트가 쫓아옴, 아니면 상자 곁을 지킴
+      life: 150,
+      levels: 1,           // 보상: 즉시 레벨업 1 (+ 3단계: 유물 3개 중 1개)
+    },
+    ruin: {
+      times: [120, 480, 840],   // 한 판 최대 3개
+      distMin: 900, distMax: 1500,
+      runes: 3, runeRadius: 400, runePick: 24,
+      altarRadius: 44,     // 제단에 서 있다고 보는 거리
+      levels: 2,           // 보상: 레벨 +2 (+ 3단계: 전설 유물 3개 중 1개)
+      openPause: 1.0,      // 개방 연출(게임 멈춤)
+      siegeTime: 10,       // 개방 순간부터 10초간 사방에서 대습격
+      siegeEvery: 1.0,     // 초마다
+      siegeCount: 90, siegeCountPerMin: 12, siegeRadius: 520, siegeDirs: 8,
+    },
+    pingNear: 700,         // 이 거리 안이면 "띠링"(가까울수록 빨라짐)
+    unitsPerMeter: 10,     // 나침반 거리 표시: 월드 10단위 = 1m
   },
 
   // ------------------------------------------------------------ 마법탄 (레벨 1부터 자동 발사)
@@ -430,6 +476,12 @@ export const CONFIG = {
     item_twin:        { file: 'item_twin.png',        size: [16, 16], fit: true },
     item_fury:        { file: 'item_fury.png',        size: [16, 16], fit: true },
     item_chest:       { file: 'item_chest.png',       size: [20, 20], fit: true },
+    // 보물
+    chest_wood:       { file: 'chest_wood.png',       size: [20, 20], fit: true },
+    chest_gold:       { file: 'chest_gold.png',       size: [20, 20], fit: true },
+    mimic:            { file: 'mimic.png',            size: [24, 24], fit: true },
+    altar:            { file: 'altar.png',            size: [40, 40], fit: true },
+    rune:             { file: 'rune.png',             size: [12, 12], fit: true },
     prop_tree:        { file: 'prop_tree.png',        size: [22, 24] },
     prop_rock:        { file: 'prop_rock.png',        size: [16, 14] },
     prop_bush:        { file: 'prop_bush.png',        size: [18, 14] },

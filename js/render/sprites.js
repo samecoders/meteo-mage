@@ -8,6 +8,7 @@ import { meteors, fires, threatOnPlayer, escapeDir } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
 import { items, fireballs, KINDS, RARITY, ITEM_CHEST } from '../items.js';
 import { BT } from '../bolts.js';
+import { treasures, KIND_WOOD, KIND_GOLD, KIND_RUIN } from '../treasure.js';
 import { playerSpeed } from '../player.js';
 import { pal } from '../skins.js';
 import { fillCraters, fillCorpses, fillAfterimages, fillParticles, fillRings, fillSpriteFx, fillStrikes, addParticle, addAfterimage, particleRoom, getQualityLevel } from './effects.js';
@@ -30,6 +31,9 @@ const ITEM_SPR = KINDS.map((k) => SPR['item_' + k]);
 const RARITY_GLOW = { common: pal(31), rare: pal(11), legend: pal(24), boss: pal(24) };
 const ITEM_GLOW = RARITY.map((r) => RARITY_GLOW[r]);
 const RAINBOW = [22, 23, 24, 6, 12, 11, 21].map(pal);
+// 보물 색: 나무=갈색, 황금=금색, 유적=보라
+const TREASURE_COL = [pal(19), pal(24), pal(21)];
+const TREASURE_SPR = [SPR.chest_wood, SPR.chest_gold, SPR.altar];
 const DECOR_SPR = CONFIG.decor.kinds.map((k) => SPR[k]);
 export const HERO_SPR = { mage: SPR.mage, apprentice: SPR.hero_apprentice, pyromancer: SPR.hero_pyromancer, icewitch: SPR.hero_icewitch, necromancer: SPR.hero_necromancer };
 
@@ -96,6 +100,14 @@ export function fillTop(V, alpha, G, time) {
   const b = batches.top;
   b.reset();
   fillCorpses(b, V);
+  for (const t of treasures) {
+    if (!t.active) continue;
+    const sx = t.x * 0.5 - V.left, sy = t.y * 0.5 - V.top;
+    if (t.kind === KIND_RUIN) for (const rn of t.runes) if (!rn[2]) b.push(rn[0] * 0.5 - V.left, rn[1] * 0.5 - V.top - (((time * 2) % 1) < 0.5 ? 1 : 0), SPR.rune, 0, 0, 1, 0);
+    if (sx < -40 || sy < -40 || sx > V.iw + 40 || sy > V.ih + 40) continue;
+    const shake = t.gauge > 0 && t.kind !== KIND_RUIN ? (((time * 30) | 0) % 2) : 0;   // 여는 중: 덜컹
+    b.push(sx + shake, sy, TREASURE_SPR[t.kind], 0, 0, 1, 0);
+  }
   const blinkLast = CONFIG.items.blinkLast;
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -155,6 +167,27 @@ export function fillUnder(V, G, time, dashPrev) {
     b.push(sx, sy, z.r * 0.5, 0, pal(3), 0, (90 * d) | 0, 0, 0);
     b.push(sx, sy, z.r * 0.5, 2, ORANGE, 2, (220 * d) | 0, 18, ((time * 60) | 0) & 255);
   }
+  // 보물: 바닥 빛 + 열기 게이지(원형) / 유적: 룬석 다 모으면 제단 원이 빛남
+  for (const t of treasures) {
+    if (!t.active) continue;
+    const sx = t.x * 0.5 - V.left, sy = t.y * 0.5 - V.top, col = TREASURE_COL[t.kind];
+    if (sx < -60 || sy < -60 || sx > V.iw + 60 || sy > V.ih + 60) continue;
+    const pulse = ((time * 3) % 1) < 0.5;
+    if (t.kind === KIND_RUIN) {
+      const ready = t.picked >= t.runes.length;
+      b.push(sx, sy + 6, CONFIG.treasure.ruin.altarRadius * 0.5, 2, col, ready ? 1 : 2, ready ? 255 : 140, ready ? 0 : 16, ((time * 20) | 0) & 255);
+      if (ready) b.push(sx, sy + 6, CONFIG.treasure.ruin.altarRadius * 0.5, 0, col, 0, pulse ? 90 : 60, 0, 0);
+      continue;
+    }
+    b.push(sx, sy + 4, pulse ? 12 : 11, 0, col, 0, 70, 0, 0);
+    const R = CONFIG.treasure.openRadius * 0.5;
+    b.push(sx, sy + 4, R, 1, col, 2, 150, 12, ((time * 30) | 0) & 255);
+    if (t.gauge > 0) {   // 원형 게이지: 채워진 만큼 점
+      const n = 24, k = Math.round(t.gauge * n);
+      for (let q = 0; q < k; q++) { const a = -Math.PI / 2 + q / n * Math.PI * 2; b.push(sx + Math.cos(a) * (R + 3), sy + 4 + Math.sin(a) * (R + 3), 1.5, 0, t.kind === KIND_GOLD ? YELLOW : WHITE, 3, 255, 0, 0); }
+    }
+    if (t.kind === KIND_GOLD && t.elites > 0) b.push(sx, sy + 4, CONFIG.treasure.gold.eliteRing * 0.5, 1, YELLOW, 2, 90, 20, ((time * 10) | 0) & 255);
+  }
   // 아이템 바닥 빛(등급 색으로 반짝)
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -199,6 +232,27 @@ export function fillOver(V, G, time, alpha) {
   b.reset();
   fillRings(b, V);
   fillStrikes(b, V, WHITE, YELLOW);
+  // 보물 빛기둥(종류별 색) — 가까울수록 빨리 반짝임
+  for (const t of treasures) {
+    if (!t.active) continue;
+    const sx = t.x * 0.5 - V.left, sy = t.y * 0.5 - V.top;
+    if (sx < -20 || sx > V.iw + 20 || sy < -20 || sy > V.ih + 140) continue;
+    const d = Math.hypot(t.x - G.player.x, t.y - G.player.y), rate = 2 + Math.max(0, 1 - d / 700) * 8;
+    const on = ((time * rate) | 0) % 2, col = TREASURE_COL[t.kind], h = t.kind === KIND_RUIN ? 70 : 50;
+    b.push(sx, sy - h - 6, 3 + on, h, col, 4, 110, 0, 0);
+    b.push(sx, sy - h - 6, 1, h, WHITE, 4, on ? 200 : 120, 0, 0);
+    if (t.kind === KIND_RUIN) for (const rn of t.runes) if (!rn[2]) { const rx = rn[0] * 0.5 - V.left, ry = rn[1] * 0.5 - V.top; b.push(rx, ry - 26, 1 + on, 22, col, 4, 120, 0, 0); }
+  }
+  // 엘리트 몹: 금테두리
+  if (G.elitesAlive > 0) {
+    const EL = M.elite, X = M.x, Y = M.y, n = M.n, gold = ((time * 6) | 0) % 2 ? YELLOW : ORANGE;
+    for (let i = 0; i < n; i++) {
+      if (!EL[i]) continue;
+      const sx = X[i] * 0.5 - V.left, sy = Y[i] * 0.5 - V.top;
+      if (sx < -10 || sy < -10 || sx > V.iw + 10 || sy > V.ih + 10) continue;
+      b.push(sx, sy, 9, 2, gold, 1, 255, 0, 0);
+    }
+  }
   // 전설 아이템: 금빛 기둥
   for (let i = 0; i < items.length; i++) {
     const it = items[i];

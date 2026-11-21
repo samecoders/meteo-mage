@@ -176,5 +176,16 @@
   "goal.best": "Noch {n} Kills bis zu deinem Rekord",
   "goal.hero": "Noch {n} Gold bis {name}",
   "goal.heroReady": "{name} kann freigeschaltet werden!",
-  "goal.week10": "Noch {n} Kills bis zur Wochen-Top-10"
+  "goal.week10": "Noch {n} Kills bis zur Wochen-Top-10",
+  "treasure.spawn.wood": "Holztruhe gefunden!",
+  "treasure.spawn.gold": "Goldtruhe gefunden! Elite-Wächter",
+  "treasure.spawn.ruin": "Alte Ruine gefunden! Sammle 3 Runensteine",
+  "treasure.open.wood": "Holztruhe! EP und Gegenstände",
+  "treasure.open.gold": "Goldtruhe! Stufenaufstieg",
+  "treasure.open.ruin": "Ruine geöffnet! Stufe +2",
+  "treasure.open.mimic": "Mimik besiegt! Stufenaufstieg",
+  "treasure.siege": "Großangriff! Halte 10 Sekunden durch",
+  "treasure.mimic": "Eine Mimik!",
+  "treasure.rune": "Runenstein {n}/{of}",
+  "treasure.elites": "Elite besiegt! Die Goldtruhe öffnet sich"
 }

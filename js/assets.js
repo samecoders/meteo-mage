@@ -14,6 +14,7 @@ export const SPRITE_ORDER = [
   'fx_explosion', 'fx_hit', 'fx_levelup',
   'item_expgem', 'item_coin',
   ...CONFIG.items.kinds.map((k) => 'item_' + k.key),
+  'chest_wood', 'chest_gold', 'altar', 'rune',
   'prop_tree', 'prop_rock', 'prop_bush', 'prop_ruin',
   'ground', 'ground_dirt',
 ];
@@ -220,6 +221,12 @@ GEN.item_coin = () => { const b = new PB(10, 10); b.disc(5, 5, 4.5, 23); b.disc(
 GEN.item_potion = () => { const b = new PB(10, 12); b.disc(5, 8, 4, 22); b.rect(4, 1, 2, 4, 14); b.px(3, 7, 31); return b.outline(); };
 GEN.item_magnet = () => { const b = new PB(12, 12); b.disc(6, 6, 5, 22); b.disc(6, 6, 2.5, -1); b.rect(1, 6, 10, 6, -1); b.rect(1, 6, 3, 4, 22); b.rect(8, 6, 3, 4, 22); b.rect(1, 9, 3, 2, 14); b.rect(8, 9, 3, 2, 14); return b.outline(); };
 GEN.item_chest = () => { const b = new PB(16, 14); b.rect(1, 4, 14, 9, 18); b.rect(1, 2, 14, 4, 17); b.rect(1, 7, 14, 1, 24); b.rect(7, 6, 2, 3, 24); return b.outline(); };
+// 보물(그림이 없을 때)
+GEN.chest_wood = () => { const b = new PB(20, 20); b.rect(2, 7, 16, 11, 18); b.rect(2, 4, 16, 5, 17); b.rect(2, 9, 16, 1, 28); b.rect(9, 8, 2, 4, 19); return b.outline(); };
+GEN.chest_gold = () => { const b = new PB(20, 20); b.rect(2, 7, 16, 11, 24); b.rect(2, 4, 16, 5, 23); b.rect(2, 9, 16, 1, 18); b.rect(9, 8, 2, 4, 31); b.px(4, 5, 31); return b.outline(); };
+GEN.mimic = () => { const b = new PB(24, 24); b.rect(2, 10, 20, 12, 18); b.rect(2, 4, 20, 5, 17); for (let x = 3; x < 21; x += 3) { b.px(x, 9, 31); b.px(x + 1, 10, 31); } b.rect(3, 9, 18, 1, 22); b.px(7, 6, 24); b.px(16, 6, 24); return b.outline(); };
+GEN.altar = () => { const b = new PB(40, 40); b.rect(6, 28, 28, 8, 15); b.rect(10, 18, 20, 10, 14); b.rect(14, 6, 12, 12, 30); b.disc(20, 12, 4, 21); b.px(19, 11, 31); return b.outline(); };
+GEN.rune = () => { const b = new PB(12, 12); b.ellipse(6, 6, 5, 5.5, 20); b.line(4, 3, 7, 9, 21); b.line(7, 3, 4, 9, 12); return b.outline(); };
 GEN.prop_tree = () => { const b = new PB(22, 24); b.rect(9, 15, 4, 8, 17); b.disc(11, 9, 9, 25); b.disc(10, 8, 7, 26); b.disc(8, 6, 3, 27); return b.outline(); };
 GEN.prop_rock = () => { const b = new PB(16, 14); b.ellipse(8, 8, 7, 5.5, 15); b.ellipse(7, 7, 5, 3.5, 14); b.px(5, 5, 31); return b.outline(); };
 GEN.prop_bush = () => { const b = new PB(18, 14); b.disc(6, 8, 5, 25); b.disc(12, 8, 5, 25); b.disc(9, 6, 5, 26); b.px(7, 6, 22); b.px(12, 7, 22); return b.outline(); };

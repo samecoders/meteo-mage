@@ -405,3 +405,21 @@ input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yel
 .rrow.me { background: rgba(255,224,64,.25); outline: 2px solid var(--yellow); }
 .rankMe { border: 2px solid var(--yellow); background: rgba(255,224,64,.12); padding: 6px 8px; font-size: 14px; font-weight: 800; text-align: center; min-height: 2.6em; }
 .rankMe small { display: block; font-size: 12px; opacity: .85; font-weight: 600; }
+
+/* ===================================================== 4차 2단계: 보물 나침반(상단 가운데, 킬 수 아래) */
+#compass { position: absolute; left: 50%; transform: translateX(-50%); top: calc(84px + var(--sat)); display: flex; align-items: center; gap: 4px;
+  font-weight: 900; font-size: 13px; text-shadow: 2px 2px 0 #000; pointer-events: none; white-space: nowrap; }
+#compass .carrow { width: 18px; height: 18px; position: relative; display: inline-block; }
+#compass .carrow::before { content: ''; position: absolute; left: 3px; top: 4px; border: 5px solid transparent; border-left: 12px solid var(--c, #d9a066); filter: drop-shadow(1px 1px 0 #000); }
+#compass .c2 { opacity: .6; transform-origin: center; }
+#compass .c2::before { border-left-width: 9px; }
+#compass b { min-width: 34px; color: var(--c, #d9a066); }
+#compass.near b { animation: pulse .4s steps(2) infinite; }
+#hudSub { top: calc(104px + var(--sat)); }
+#chain { top: calc(126px + var(--sat)); }
+#ruinSky { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 20%, rgba(155,95,192,.55), rgba(93,39,93,.35) 70%); opacity: 0; z-index: 1; }
+#ruinSky.on { animation: ruinSky 2.2s steps(10) forwards; }
+@keyframes ruinSky { 0% { opacity: 0; } 20% { opacity: 1; } 60% { opacity: .8; } 100% { opacity: 0; } }
+.toast.big { font-size: 20px; padding: 8px 16px; }
+.toast.treasure { border-color: #d9a066; color: #ffcd75; }
+.toast.ruin { border-color: #9b5fc0; color: #e0b0ff; box-shadow: 0 0 12px #9b5fc0; }

@@ -176,5 +176,16 @@
   "goal.best": "{n} abates para seu recorde",
   "goal.hero": "{n} de ouro para liberar {name}",
   "goal.heroReady": "Você pode liberar {name}!",
-  "goal.week10": "{n} abates para o top 10 da semana"
+  "goal.week10": "{n} abates para o top 10 da semana",
+  "treasure.spawn.wood": "Baú de madeira!",
+  "treasure.spawn.gold": "Baú dourado! Elites o protegem",
+  "treasure.spawn.ruin": "Ruína antiga! Junte 3 pedras rúnicas",
+  "treasure.open.wood": "Baú de madeira! EXP e itens",
+  "treasure.open.gold": "Baú dourado! Subiu de nível",
+  "treasure.open.ruin": "Ruína aberta! Nível +2",
+  "treasure.open.mimic": "Mímico derrotado! Subiu de nível",
+  "treasure.siege": "Grande ataque! Aguente 10 segundos",
+  "treasure.mimic": "É um mímico!",
+  "treasure.rune": "Pedra rúnica {n}/{of}",
+  "treasure.elites": "Elites eliminados! O baú dourado se abre"
 }

@@ -11,6 +11,7 @@ import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
 import { buyShield, buyDash, shieldPrice, dashPrice } from './shop.js';
 import { fireballs, items, KINDS } from './items.js';
 import { meteors, threatOnPlayer, escapeDir } from './meteor.js';
+import { treasureTargets } from './treasure.js';
 
 let inited = false;
 const SPECIAL_PRIORITY = ['vitality', 'twin', 'dash2', 'fastFall', 'magnet', 'fire'];
@@ -42,6 +43,7 @@ export function startBotGame({ seed = 1, skill = 0.8 } = {}) {
   return {
     seed, skill, f: 0, inp: { mx: 0, my: 0, dashHeld: false }, lx: 1, ly: 0,
     thinkEvery: Math.max(1, Math.round(6 - skill * 4)), meteors: 0, dashes: 0, hits: 0, items: 0,
+    treasure: globalThis.__botTreasure ?? true,   // 보물을 찾아가 열지(비교용으로 끌 수 있음)
     lvTimes: {}, manaFullAt: -1, manaWaits: [], fullT: 0, esc: [0, 0],
     need: globalThis.__botNeed ?? 10, wait: globalThis.__botWait ?? 2,
   };
@@ -74,6 +76,7 @@ export function botResult(st) {
   return {
     seed: st.seed, survived: +G.time.toFixed(1), died: !G.player.alive, deathBy: s.deathBy || '-',
     kills: s.kills, level: s.level, maxCombo: s.maxCombo, meteors: s.meteors, dashes: st.dashes, hits: st.hits, items: st.items,
+    treasures: G.stats.treasures || 0,
     lv5: st.lvTimes[5] ?? null, lv7: st.lvTimes[7] ?? null, lv8: st.lvTimes[8] ?? null, lv10: st.lvTimes[10] ?? null,
     manaCycle: s.meteors > 1 && st.lvTimes[5] != null ? +((G.time - st.lvTimes[5]) / s.meteors).toFixed(1) : null,   // 메테오 습득 후 평균 발사 간격
     dmgTaken: { ...s.dmgTaken }, mobs: M.n,
@@ -113,6 +116,8 @@ function think(st) {
   const danger = [];
   for (let i = 0; i < meteors.length; i++) { const m = meteors[i]; if (m.active) danger.push(m); }
 
+  const tl = st.treasure ? treasureTargets(G) : null;
+  const tg = tl && tl.length && tl[0].d < 1600 ? tl[0] : null;
   let mx = 0, my = 0, bestScore = 1e18;
   const spd = playerSpeed(G), star = G.starT > 0;
   for (let k = 0; k < 16; k++) {
@@ -166,12 +171,20 @@ function think(st) {
       const toward = (wx * dx + wy * dy) / (d || 1);
       score *= 1 - 0.35 * Math.max(0, toward) * (1 - d / 700);
     }
+    // 보물 나침반을 따라감(가장 가까운 보물)
+    if (tg) {
+      const toward = ((tg.x - p.x) * dx + (tg.y - p.y) * dy) / (tg.d || 1);
+      score *= 1 - 0.5 * Math.max(0, toward);
+    }
     score *= 1 - 0.08 * (dx * st.lx + dy * st.ly);   // 방향을 너무 자주 바꾸지 않게
     if (score < bestScore) { bestScore = score; mx = dx; my = dy; }
   }
   if (total === 0 && !items.some((it) => it.active)) { mx = Math.cos(G.time * 0.3); my = Math.sin(G.time * 0.3); }
   st.lx = mx; st.ly = my;
   inp.mx = mx; inp.my = my;
+  // 상자 위에 도착: 멈춰서 열기(몹이 너무 붙으면 포기하고 계속 움직임)
+  if (tg && tg.d < CONFIG.treasure.openRadius * 0.7 && close < 4 && tg.t.kind !== 2) { inp.mx = 0; inp.my = 0; }
+  else if (tg && tg.d < 160) { inp.mx = (tg.x - p.x) / tg.d; inp.my = (tg.y - p.y) / tg.d; }
 
   // 내 메테오 반경 안: 몹이 적은 쪽으로 탈출. 곧장 달려서 늦으면 대시
   const threat = star ? null : threatOnPlayer(G);

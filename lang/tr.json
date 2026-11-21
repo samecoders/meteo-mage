@@ -176,5 +176,16 @@
   "goal.best": "Rekoruna {n} öldürme kaldı",
   "goal.hero": "{name} için {n} altın kaldı",
   "goal.heroReady": "{name} açılabilir!",
-  "goal.week10": "Haftanın ilk 10'una {n} öldürme kaldı"
+  "goal.week10": "Haftanın ilk 10'una {n} öldürme kaldı",
+  "treasure.spawn.wood": "Tahta sandık bulundu!",
+  "treasure.spawn.gold": "Altın sandık bulundu! Elitler koruyor",
+  "treasure.spawn.ruin": "Kadim harabe bulundu! 3 rün taşı topla",
+  "treasure.open.wood": "Tahta sandık! TP ve eşyalar",
+  "treasure.open.gold": "Altın sandık! Seviye atladın",
+  "treasure.open.ruin": "Harabe açıldı! Seviye +2",
+  "treasure.open.mimic": "Taklitçi yenildi! Seviye atladın",
+  "treasure.siege": "Büyük saldırı! 10 saniye dayan",
+  "treasure.mimic": "Bu bir taklitçi!",
+  "treasure.rune": "Rün taşı {n}/{of}",
+  "treasure.elites": "Elitler yok edildi! Altın sandık açılıyor"
 }

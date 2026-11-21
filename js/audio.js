@@ -163,6 +163,14 @@ export const sfx = {
     tone('triangle', 1400, 700, 0.05, 0.025);
   },
   nearMiss() { tone('triangle', 1200, 1800, 0.15, 0.1); },
+  /** 보물 "띠링": near 0~1(가까울수록 높고 크게) */
+  ping(near) { const f = 1400 + near * 900; tone('sine', f, f, 0.12, 0.05 + near * 0.05); tone('sine', f * 1.5, f * 1.5, 0.1, 0.03 + near * 0.03, 0.06); },
+  chest(kind) {
+    const seq = kind === 'ruin' ? [392, 523, 659, 784, 1047, 1319] : kind === 'wood' ? [523, 659, 784, 1047] : [523, 659, 784, 1047, 1319, 1568];
+    seq.forEach((f, i) => tone('square', f, f, 0.12, 0.11, i * 0.07));
+    noise('highpass', 3000, 9000, 0.7, 0.6, 0.1, 0.05);
+  },
+  rune() { tone('triangle', 660, 990, 0.2, 0.12); tone('triangle', 990, 1320, 0.25, 0.1, 0.1); },
   ringWarn() { [0, 0.18, 0.36].forEach((d) => tone('square', 880, 660, 0.12, 0.1, d)); },
 };
 
