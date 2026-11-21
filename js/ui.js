@@ -309,6 +309,7 @@ export function updateHud(G, now, input) {
   setText('hudGoldN', fmt(s.gold));
   const p = G.player;
   drawHearts(p);
+  drawRelics(G);
   updateEffects(G);
   updateCompass(G);
   updateChain(G);
@@ -590,8 +591,54 @@ export function showLevelUp(level, special, cards, onPick) {
   showScreen('level');
 }
 
+// ------------------------------------------------------------ 유물 선택(레벨업 화면 자리, 위쪽 절반)
+export function relicIcon(key) { return UIIMG['relic_' + key] || null; }
+export function showRelicChoice(tier, cards, onPick) {
+  $('lvTitle').textContent = t(tier === 'legend' ? 'relic.titleLegend' : 'relic.title');
+  $('lvLevel').textContent = '';
+  $('lvSub').textContent = t('relic.sub');
+  const box = $('cards');
+  box.innerHTML = '';
+  box.classList.add('three');
+  for (const c of cards) {
+    const b = document.createElement('button');
+    b.className = 'pix card relic r-' + relicRarityOf(c.key) + (c.res ? ' resonate' : '');
+    const ci = document.createElement('span'); ci.className = 'ci';
+    const src = relicIcon(c.key);
+    if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; ci.appendChild(im); } else ci.textContent = '◆';
+    const cn = document.createElement('span'); cn.className = 'cn fit'; cn.textContent = t(`relic.${c.key}.name`);
+    const cd = document.createElement('span'); cd.className = 'cd';
+    cd.textContent = t(`relic.${c.key}.desc`) + (c.res ? '  ✦ ' + t('relic.resonance') + ': ' + t('res.' + c.res) : '');
+    b.appendChild(ci); b.appendChild(cn); b.appendChild(cd);
+    let picked = false;
+    b.addEventListener('click', () => { if (picked) return; picked = true; onPick(c.key); });
+    box.appendChild(b);
+  }
+  showScreen('level');
+}
+const RARITY_OF = Object.fromEntries(CONFIG.relics.list.map((r) => [r.key, r.rarity]));
+function relicRarityOf(k) { return RARITY_OF[k] || 'common'; }
+
+/** 상단 HP 하트 옆: 가진 유물 아이콘(작게) */
+let relicKey = '';
+function drawRelics(G) {
+  const key = G.relics.join(',');
+  if (key === relicKey) return;
+  relicKey = key;
+  const box = $('relicIcons');
+  box.textContent = '';
+  for (const k of G.relics) {
+    const src = relicIcon(k);
+    const el = src ? document.createElement('img') : document.createElement('i');
+    if (src) { el.src = src; el.alt = ''; } else el.textContent = '◆';
+    el.className = 'ricon r-' + relicRarityOf(k);
+    el.title = t(`relic.${k}.name`);
+    box.appendChild(el);
+  }
+}
+
 // ------------------------------------------------------------ 결과
-export function showGameOver(rec, bankAdd, isBest, cause) {
+export function showGameOver(rec, bankAdd, isBest, cause, relics) {
   const rows = [
     ['result.kills', fmt(rec.kills)],
     ['result.time', fmtTime(rec.surviveSec)],
@@ -610,6 +657,13 @@ export function showGameOver(rec, bankAdd, isBest, cause) {
   $('oBank').textContent = t('result.bank', { n: fmt(bankAdd) });
   $('oBest').classList.toggle('hidden', !isBest);
   $('oCause').textContent = cause ? t('result.cause', { cause }) : '';
+  const rb = $('oRelics'); rb.textContent = '';
+  for (const k of relics || []) {   // 이번 판의 유물
+    const src = relicIcon(k), el = document.createElement('span'); el.className = 'orelic';
+    if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; el.appendChild(im); }
+    const nm = document.createElement('small'); nm.textContent = t(`relic.${k}.name`); el.appendChild(nm);
+    rb.appendChild(el);
+  }
   $('oRankStatus').textContent = '';
   $('oRankStatus').classList.remove('celebrate');
   $('oGoals').textContent = '';
@@ -914,7 +968,15 @@ function setupDebugItems() {
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugItem && H.debugItem(k); });
     box.appendChild(b);
   }
-  for (const [label, fn] of [['Lv+', 'debugLevel'], ['God', 'debugGod'], ['상자', 'debugWood'], ['미믹', 'debugMimic'], ['황금', 'debugGold'], ['유적', 'debugRuin']]) {
+  for (const k of H.relicKeys || []) {   // 유물 바로 얻기
+    const b = document.createElement('button');
+    b.title = 'relic ' + k;
+    const src = UIIMG['relic_' + k];
+    if (src) { const im = document.createElement('img'); im.src = src; im.alt = k; b.appendChild(im); } else b.textContent = k.slice(0, 3);
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugRelic(k); });
+    box.appendChild(b);
+  }
+  for (const [label, fn] of [['Lv+', 'debugLevel'], ['God', 'debugGod'], ['상자', 'debugWood'], ['미믹', 'debugMimic'], ['황금', 'debugGold'], ['유적', 'debugRuin'], ['유물?', 'debugRelicChoice']]) {
     const b = document.createElement('button');
     b.textContent = label;
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H[fn] && H[fn](b); });

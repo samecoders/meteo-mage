@@ -6,27 +6,27 @@ import { grid, cellX, cellY } from './sim/grid.js';
 import { addParticle, particleRoom } from './render/effects.js';
 import { pal } from './skins.js';
 
-const C = CONFIG.bolts;
+const C = CONFIG.bolts, RL = CONFIG.relics;
 const N = C.max;
 export const BT = {
   n: 0,
   x: new Float32Array(N), y: new Float32Array(N), px: new Float32Array(N), py: new Float32Array(N),
   vx: new Float32Array(N), vy: new Float32Array(N), life: new Float32Array(N),
-  pierce: new Int8Array(N), skip: new Uint8Array(N),
+  pierce: new Int8Array(N), skip: new Uint8Array(N), gen: new Uint8Array(N),
 };
 
 export function clearBolts() { BT.n = 0; }
 
-function addBolt(x, y, vx, vy, pierce) {
+function addBolt(x, y, vx, vy, pierce, gen, life) {
   if (BT.n >= N) return;
   const i = BT.n++;
   BT.x[i] = BT.px[i] = x; BT.y[i] = BT.py[i] = y; BT.vx[i] = vx; BT.vy[i] = vy;
-  BT.life[i] = C.life; BT.pierce[i] = pierce; BT.skip[i] = 0;
+  BT.life[i] = life || C.life; BT.pierce[i] = pierce; BT.skip[i] = gen ? 2 : 0; BT.gen[i] = gen || 0;
 }
 function removeBolt(i) {
   const j = --BT.n;
   BT.x[i] = BT.x[j]; BT.y[i] = BT.y[j]; BT.px[i] = BT.px[j]; BT.py[i] = BT.py[j];
-  BT.vx[i] = BT.vx[j]; BT.vy[i] = BT.vy[j]; BT.life[i] = BT.life[j]; BT.pierce[i] = BT.pierce[j]; BT.skip[i] = BT.skip[j];
+  BT.vx[i] = BT.vx[j]; BT.vy[i] = BT.vy[j]; BT.life[i] = BT.life[j]; BT.pierce[i] = BT.pierce[j]; BT.skip[i] = BT.skip[j]; BT.gen[i] = BT.gen[j];
 }
 
 const out = [0, 0];
@@ -104,7 +104,7 @@ export function updateBolts(G, dt) {
           if (DEAD[m]) continue;
           const dx = X[m] - bx, dy = Y[m] - by, r = RADIUS[TY[m]] + br;
           if (dx * dx + dy * dy > r * r) continue;
-          HP[m] -= dmg; FL[m] = CONFIG.mobs.flashTicks;
+          HP[m] -= BT.gen[i] ? dmg * RL.boltSplitDamage : dmg; FL[m] = CONFIG.mobs.flashTicks;
           if (HP[m] <= 0) { DEAD[m] = 2; kills++; expSum += EXP[TY[m]]; }
           hit = true;
           break;
@@ -124,6 +124,10 @@ export function updateBolts(G, dt) {
     }
     if (hit) {
       hitFx(bx, by);
+      if (G.R.bolt && !BT.gen[i]) {   // 분열 마법탄: 작은 탄 2개로 갈라짐
+        const a = Math.atan2(BT.vy[i], BT.vx[i]);
+        for (const s of [-1, 1]) { const aa = a + s * RL.boltSplitAngle; addBolt(bx, by, Math.cos(aa) * C.speed, Math.sin(aa) * C.speed, 0, 1, RL.boltSplitLife); }
+      }
       if (BT.pierce[i] > 0) { BT.pierce[i]--; BT.skip[i] = 2; }
       else { removeBolt(i); i--; }
     }

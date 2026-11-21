@@ -6,6 +6,7 @@ import { M, B, EXP, GUARD, addMob, addBoss } from './sim/mobs.js';
 import { dropItem, randomKind } from './items.js';
 import { addRing, addShake, addParticle, particleRoom } from './render/effects.js';
 import { pal } from './skins.js';
+import { queueRelic } from './relics.js';
 
 const T = CONFIG.treasure;
 export const KIND_WOOD = 0, KIND_GOLD = 1, KIND_RUIN = 2;
@@ -98,6 +99,7 @@ function close(t) { t.active = false; GUARD.x[t.id] = NaN; GUARD.y[t.id] = NaN; 
 /** 황금 상자 보상: 즉시 레벨업 + (3단계) 유물 3개 중 1개 */
 function goldReward(G, x, y, src) {
   for (let k = 0; k < T.gold.levels; k++) G.addExp(G.stats.expNeed - G.stats.exp + 0.01);
+  queueRelic(G, 'normal');   // 유물 3개 중 1개
   G.events.push({ type: 'treasureOpen', kind: src, x, y, relic: 'normal' });
 }
 
@@ -119,6 +121,7 @@ function openTreasure(G, t) {
     burst(G, t.x, t.y, pal(21), true);
     G.hitstop = Math.max(G.hitstop, T.ruin.openPause);
     for (let k = 0; k < T.ruin.levels; k++) G.addExp(G.stats.expNeed - G.stats.exp + 0.01);
+    queueRelic(G, 'legend');   // 전설 유물 3개 중 1개
     st.siegeT = T.ruin.siegeTime; st.siegeAcc = 0; st.siegeX = p.x; st.siegeY = p.y;
     G.events.push({ type: 'treasureOpen', kind: 'ruin', x: t.x, y: t.y, relic: 'legend' });
   }
@@ -150,7 +153,11 @@ export function updateTreasures(G, dt) {
   const p = G.player;
   // 생성
   st.woodT -= dt * mul(G);
-  if (st.woodT <= 0) { st.woodT = T.wood.everyMin + G.rng() * (T.wood.everyMax - T.wood.everyMin); spawnTreasure(G, KIND_WOOD); }
+  if (st.woodT <= 0) {
+    st.woodT = T.wood.everyMin + G.rng() * (T.wood.everyMax - T.wood.everyMin);
+    const upgrade = G.res && G.res.crownLens && G.rng() < CONFIG.relics.crownLensGold;   // 공명: 나무 상자가 가끔 황금 상자로
+    spawnTreasure(G, upgrade ? KIND_GOLD : KIND_WOOD);
+  }
   st.goldT -= dt * mul(G);
   if (st.goldT <= 0) { st.goldT = T.gold.everyMin + G.rng() * (T.gold.everyMax - T.gold.everyMin); spawnTreasure(G, KIND_GOLD); }
   if (st.ruinIdx < T.ruin.times.length && G.time >= T.ruin.times[st.ruinIdx]) { st.ruinIdx++; spawnTreasure(G, KIND_RUIN); }

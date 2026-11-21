@@ -41,6 +41,7 @@ export function tryDash(G, input, dx, dy) {
   else dir(G, input, tmp);
   p.dashCharges--;
   p.dashDx = tmp[0]; p.dashDy = tmp[1];
+  if (G.dashQ) { const d = dashDistance(p, G); G.dashQ.push(p.x, p.y, p.x + tmp[0] * d, p.y + tmp[1] * d); }   // 유물(분신·혜성 꼬리)용 — 틱에서 처리
   p.dashT = D.duration;
   p.dashSpeed = dashDistance(p, G) / D.duration;
   p.ghostT = 0;

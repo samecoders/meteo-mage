@@ -7,9 +7,11 @@ import { grid, allocGrid, buildGrid, cellX, cellY } from './sim/grid.js';
 import { resetSpawner, updateSpawner } from './sim/spawn.js';
 import { createPlayer, resetPlayer } from './player.js';
 import { isDashing } from './dash.js';
-import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer, explode } from './meteor.js';
+import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer, explode, addFire } from './meteor.js';
 import { clearBolts, updateBolts } from './bolts.js';
 import { resetTreasures, updateTreasures, onEliteDead, onMimicDead } from './treasure.js';
+import { resetRelics } from './relics.js';
+import { LURE } from './sim/mobs.js';
 import { clearOrbs, updateOrbs } from './orbs.js';
 import { addExp, expNeed } from './upgrade.js';
 import { clearEffects, addCorpse, addRing, addShake, addParticle, addSpriteFx } from './render/effects.js';
@@ -82,7 +84,9 @@ export function newGame(opts) {
   G.boltT = 0; G.boltRate = BC.rate; G.boltCount = BC.count; G.boltPierce = BC.pierce;
   G.starT = 0; G.slowT = 0; G.twinT = 0; G.furyT = 0; G.magnetAll = 0;
   G.itemT = CONFIG.items.firstAt; G.orbItems = 0; G.ringItems = 0; G.lensItems = 0;
-  G.elitesAlive = 0; G.treasureMul = 1;
+  G.elitesAlive = 0; G.treasureMul = 1; G.compass2 = false; G.crown = false;
+  G.dashQ = []; G.clone = { t: 0, x: 0, y: 0 }; G.springAcc = 0;
+  resetRelics(G); LURE.on = false;
   G.chainN = 0; G.chainLast = -99; G.lastRingT = -99;
   G.skin = skinById(opts.skin || 'fire');
   G.hero = opts.hero || 'mage';
@@ -152,6 +156,17 @@ function breakShield(p) {
 
 function killPlayer(src) {
   const p = G.player;
+  // 불사조 깃털: 한 번 죽으면 하트 가득 부활 + 주변 몹을 폭발로 날림(한 판 1회)
+  if (G.R.phoenix && !G.phoenixUsed) {
+    const RL = CONFIG.relics;
+    G.phoenixUsed = true;
+    p.hp = p.maxHp; p.invuln = 2; p.sinceHurt = 0;
+    explode(G, p.x, p.y, RL.phoenixRadius, RL.phoenixPower, true);
+    pushMobs(p.x, p.y, RL.phoenixRadius * 1.4, 900);
+    addRing(p.x, p.y, 10, RL.phoenixRadius * 1.4, 0.6, pal(23), 1, 6);
+    G.events.push({ type: 'phoenix', by: src });
+    return;
+  }
   p.hp = 0;
   G.stats.deathBy = src;
   p.alive = false;
@@ -234,8 +249,14 @@ function awardKills(kills, expSum, isCombo, bossKills) {
   if (kills + bossKills <= 0) return;
   s.kills += kills + bossKills;
   const mult = isCombo ? 1 + PR.comboMultK * Math.log10(1 + kills) : 1;
-  const exp = expSum * mult + bossKills * CONFIG.boss.exp;
-  G.goldFrac += kills / PR.killsPerGold * mult;
+  const crown = G.crown ? CONFIG.relics.crownMul : 1;   // 탐욕의 왕관: 골드·경험치 2배
+  const exp = (expSum * mult + bossKills * CONFIG.boss.exp) * crown;
+  G.goldFrac += kills / PR.killsPerGold * mult * crown;
+  if (G.R.spring && G.meteorLearned) {   // 마나의 샘: 100마리마다 마력 +5%
+    G.springAcc += kills;
+    const RL = CONFIG.relics;
+    while (G.springAcc >= RL.springEvery) { G.springAcc -= RL.springEvery; G.mana = Math.min(CONFIG.mana.max, G.mana + RL.springMana); }
+  }
   let gold = Math.floor(G.goldFrac);
   G.goldFrac -= gold;
   if (isCombo) {
@@ -256,6 +277,25 @@ function awardKills(kills, expSum, isCombo, bossKills) {
   addExp(G, exp);
 }
 
+/** 대시 유물: 그림자 분신(대시한 자리에 2초, 몹을 끌어당김) / 혜성 꼬리(대시 경로에 3초 불길) */
+function updateDashRelics(dt) {
+  const RL = CONFIG.relics, q = G.dashQ;
+  for (let k = 0; k < q.length; k += 4) {
+    const x0 = q[k], y0 = q[k + 1], x1 = q[k + 2], y1 = q[k + 3];
+    if (G.R.shadow) { G.clone.t = RL.shadowTime; G.clone.x = x0; G.clone.y = y0; }
+    if (G.R.comet) for (let s = 0; s < RL.cometSteps; s++) { const f = (s + 0.5) / RL.cometSteps; addFire(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, RL.cometR / 0.85, RL.cometTime); }
+  }
+  q.length = 0;
+  if (G.clone.t > 0) {
+    G.clone.t -= dt;
+    LURE.on = true; LURE.x = G.clone.x; LURE.y = G.clone.y; LURE.r2 = RL.shadowLure * RL.shadowLure;
+    if (G.clone.t <= 0) {
+      LURE.on = false;
+      if (G.res.shadowComet) explode(G, G.clone.x, G.clone.y, RL.shadowBlastR, G.meteorPower * RL.shadowBlastPower, true);   // 공명: 분신 폭발
+    }
+  } else LURE.on = false;
+}
+
 function onDeadMob(i) {
   if (M.elite[i]) onEliteDead(G, M.elite[i]);
   if (M.dead[i] === 1) addCorpse(M.x[i], M.y[i], M.type[i], G.corpseX, G.corpseY, true);
@@ -271,7 +311,8 @@ export function tick() {
   {
     const MB = CONFIG.mobs, f = Math.min(1, G.time / MB.easeTime);
     M.hpMul = MB.easeHp + (1 - MB.easeHp) * f;
-    M.speedMul = (MB.easeSpeed + (1 - MB.easeSpeed) * f) * MB.speedMul * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1);
+    M.speedMul = (MB.easeSpeed + (1 - MB.easeSpeed) * f) * MB.speedMul * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1)
+      * (G.R.rift && castingOnPlayer() ? CONFIG.relics.riftSlow : 1);   // 시간 균열: 메테오 낙하 중 50%
   }
   if (G.starT > 0) G.starT = Math.max(0, G.starT - dt);
   if (G.slowT > 0) G.slowT = Math.max(0, G.slowT - dt);
@@ -293,6 +334,7 @@ export function tick() {
   G.taps.length = 0;
 
   updateMeteors(G, dt);
+  updateDashRelics(dt);
   updateFires(G, dt);
   updateBolts(G, dt);
 
@@ -371,11 +413,11 @@ export function tick() {
   for (let i = 0; i < B.length; i++) if (B[i].active) bosses++;
   if (M.n + bosses > G.stats.maxMobs) G.stats.maxMobs = M.n + bosses;
 
-  // 레벨업 대기(0.15초 뒤 카드 / 레벨 5는 메테오 습득)
+  // 레벨업 대기(0.15초 뒤 카드 / 레벨 5는 메테오 습득) → 그다음 유물 선택
   if (G.levelQueue.length && p.alive) {
     G.levelUpWait += dt;
     if (G.levelUpWait >= CONFIG.progress.levelUpDelay) { G.levelUpWait = 0; G.mode = 'levelup'; G.events.push({ type: 'levelup' }); }
-  }
+  } else if (G.relicQueue.length && p.alive) { G.mode = 'relic'; G.events.push({ type: 'relicChoice' }); }
   if (!p.alive) {
     G.dying += dt;
     if (G.dying >= 1.4 && G.mode === 'play') { G.mode = 'over'; G.events.push({ type: 'gameover' }); }

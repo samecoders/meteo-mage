@@ -100,7 +100,7 @@ export function updateSpawner(G, dt, spawnR) {
     spawner.frontVel[i] *= 0.98;
     spawner.fronts[i] += spawner.frontVel[i] * dt * 10;
   }
-  const target = G.bench ? G.benchCount : Math.min(targetAt(G.time), M.cap);
+  const target = G.bench ? G.benchCount : Math.min(Math.round(targetAt(G.time) * (G.crown ? CONFIG.relics.crownMobs : 1)), M.cap);   // 탐욕의 왕관: 몹 +25%
   let budget = Math.min(target - M.n, S.perTickMax);
   if (budget > 0) {
     const w = weightsAt(G.bench ? 480 : G.time);   // 벤치마크는 후반 몹 구성

@@ -423,3 +423,24 @@ input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yel
 .toast.big { font-size: 20px; padding: 8px 16px; }
 .toast.treasure { border-color: #d9a066; color: #ffcd75; }
 .toast.ruin { border-color: #9b5fc0; color: #e0b0ff; box-shadow: 0 0 12px #9b5fc0; }
+
+/* ===================================================== 4차 3단계: 유물 */
+.heartRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#relicIcons { display: flex; gap: 2px; }
+.ricon { width: 20px; height: 20px; image-rendering: pixelated; object-fit: contain; background: rgba(26,28,44,.7); border: 2px solid var(--gray); font-style: normal; font-size: 12px; text-align: center; line-height: 16px; }
+.ricon.r-rare { border-color: var(--sky); } .ricon.r-legend { border-color: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+.pix.card.relic { background: var(--navy); }
+.pix.card.relic.r-rare { border-color: var(--sky); } .pix.card.relic.r-legend { border-color: var(--yellow); background: var(--plum); }
+.pix.card.relic.resonate { animation: resGlow .6s steps(3) infinite alternate; }
+@keyframes resGlow { from { box-shadow: 0 0 0 3px #c08aff, 4px 4px 0 #000; } to { box-shadow: 0 0 14px 5px #c08aff, 4px 4px 0 #000; } }
+.orelics { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.orelic { display: flex; align-items: center; gap: 2px; font-size: 11px; background: rgba(255,255,255,.06); padding: 1px 4px; }
+.orelic img { width: 18px; height: 18px; image-rendering: pixelated; }
+/* 3장 카드(유물·특수): 위쪽 60% 안에 모두 보이게 작게 */
+#scrLevel .panel { max-height: calc(60vh - 118px); overflow-y: auto; touch-action: pan-y; gap: 6px; padding: 10px; }
+#scrLevel #cards.three { gap: 6px; }
+#scrLevel #cards.three .pix.card { padding: 4px 8px; min-height: 0; gap: 8px; }
+#scrLevel #cards.three .card .ci img { width: 32px; height: 32px; }
+#scrLevel #cards.three .card .cn { font-size: 15px; flex: 0 0 34%; }
+#scrLevel #cards.three .card .cd { font-size: 12px; line-height: 1.25; }
+#scrLevel .panel h2 { font-size: 20px; margin: 0; }

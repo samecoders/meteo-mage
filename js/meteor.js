@@ -9,24 +9,25 @@ import { pal } from './skins.js';
 import { SPR } from './assets.js';
 import { playerSpeed } from './player.js';
 
-const MC = CONFIG.meteor;
+const MC = CONFIG.meteor, RL = CONFIG.relics;
 
 export const meteors = [];
-for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false, follow: false });
+// kind: 0 메테오, 1 메아리(유물), 2 유성우 작은 운석(유물, 법사 피해 없음)
+for (let i = 0; i < MC.maxActive; i++) meteors.push({ active: false, x: 0, y: 0, t: 0, fall: 1, own: false, follow: false, kind: 0 });
 
 export const fires = [];
-for (let i = 0; i < 6; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
+for (let i = 0; i < 16; i++) fires.push({ active: false, x: 0, y: 0, r: 0, t: 0, acc: 0 });
 
 export function resetMeteors() {
   for (let i = 0; i < meteors.length; i++) meteors[i].active = false;
   for (let i = 0; i < fires.length; i++) fires[i].active = false;
 }
 
-function addMeteor(x, y, t0, fall, own, follow) {
+function addMeteor(x, y, t0, fall, own, follow, kind) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (m.active) continue;
-    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own; m.follow = !!follow;
+    m.active = true; m.x = x; m.y = y; m.t = t0; m.fall = fall; m.own = own; m.follow = !!follow; m.kind = kind || 0;
     return m;
   }
   return null;
@@ -79,7 +80,7 @@ export function threatOnPlayer(G) {
   const p = G.player;
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
-    if (!m.active || m.t < 0) continue;
+    if (!m.active || m.t < 0 || m.kind === 2) continue;
     const dx = p.x - m.x, dy = p.y - m.y, R = G.meteorRadius;
     if (dx * dx + dy * dy < R * R && (!best || m.fall - m.t < best.fall - best.t)) best = m;
   }
@@ -102,7 +103,41 @@ export function updateMeteors(G, dt) {
       m.x = G.player.x; m.y = G.player.y; m.follow = false; m.fall = fallTimeFor(G);
       G.events.push({ type: 'launch2' });
     }
-    if (m.t >= m.fall) { m.active = false; explode(G, m.x, m.y); }
+    // 중력의 핵: 낙하 중 폭발 중심으로 몹을 끌어당김(메아리 폭발은 공명일 때만)
+    if (G.R.gravity && m.t >= 0 && (m.kind === 0 || (m.kind === 1 && G.res.gravityEcho))) pullMobs(m.x, m.y, G.meteorRadius * RL.gravityRange, RL.gravityPull * dt);
+    if (m.t >= m.fall) {
+      m.active = false;
+      if (m.kind === 2) { explode(G, m.x, m.y, RL.rainRadius, G.meteorPower * RL.rainPower, true, true); continue; }   // 유성우: 법사 피해 없음
+      explode(G, m.x, m.y, 0, m.kind === 1 ? G.meteorPower * RL.echoPower : 0);
+      if (m.kind === 0) {
+        // 메아리 룬: 2초 뒤 같은 자리에 50% 위력(법사도 맞음, 붉은 원 다시 표시)
+        if (G.R.echo) addMeteor(m.x, m.y, -(RL.echoDelay - RL.echoFall), RL.echoFall, m.own, false, 1);
+        // 유성우: 주변에 작은 운석 6개
+        if (G.R.rain) for (let k = 0; k < RL.rainCount; k++) {
+          const a = G.rng() * Math.PI * 2, r = G.meteorRadius * (0.5 + G.rng() * (RL.rainSpread - 0.5));
+          addMeteor(m.x + Math.cos(a) * r, m.y + Math.sin(a) * r, -k * 0.12, RL.rainFall, false, false, 2);
+        }
+      }
+    }
+  }
+}
+
+/** 중력: 반경 안 몹을 중심으로 조금씩 끌어당김(격자 칸만) */
+export function pullMobs(x, y, radius, step) {
+  const g = grid, cols = g.cols, start = g.start, items = g.items, r2 = radius * radius;
+  const X = M.x, Y = M.y;
+  const c0 = cellX(x - radius), c1 = cellX(x + radius), r0 = cellY(y - radius), r1 = cellY(y + radius);
+  for (let cy = r0; cy <= r1; cy++) {
+    for (let cx = c0; cx <= c1; cx++) {
+      const c = cy * cols + cx;
+      for (let k = start[c], e = start[c + 1]; k < e; k++) {
+        const i = items[k];
+        const dx = x - X[i], dy = y - Y[i], d2 = dx * dx + dy * dy;
+        if (d2 > r2 || d2 < 100) continue;
+        const d = Math.sqrt(d2), s = Math.min(step, d - 8) / d;
+        X[i] += dx * s; Y[i] += dy * s;
+      }
+    }
   }
 }
 
@@ -124,7 +159,7 @@ function noteKill(x, y) {
 /**
  * 폭발 판정 + 보상 + 연출. 메테오는 R·power 를 생략(현재 값). 마나 폭탄은 noSelf=true(법사 피해 없음).
  */
-export function explode(G, x, y, Rr, powerR, noSelf) {
+export function explode(G, x, y, Rr, powerR, noSelf, small) {
   const R = Rr || G.meteorRadius, R2 = R * R, power = powerR || G.meteorPower, edge = MC.edgeDamage;
   const SR = R * MC.shockRange, SR2 = SR * SR, imp = MC.shockImpulse;
   const g = grid, cs = g.cs, cols = g.cols, start = g.start, items = g.items;
@@ -202,12 +237,12 @@ export function explode(G, x, y, Rr, powerR, noSelf) {
   }
 
   G.awardKills(kills, expSum, true, bossKills);
-  explosionFx(G, x, y, R, kills);
+  explosionFx(G, x, y, R, kills, small);
   if (G.fire && !noSelf) addFire(x, y, R);
-  G.events.push({ type: 'explosion', x, y, kills });
+  G.events.push({ type: 'explosion', x, y, kills, small: !!small });
 }
 
-function explosionFx(G, x, y, R, kills) {
+function explosionFx(G, x, y, R, kills, small) {
   const sk = G.skin;
   addRing(x, y, R * 0.3, R * 1.05, 0.08, WHITE, 0);
   // 폭발 그림을 반경에 맞는 정수 배율로(픽셀이 깨지지 않게)
@@ -233,14 +268,14 @@ function explosionFx(G, x, y, R, kills) {
   }
   addShake(2 + Math.min(5, Math.log10(1 + kills) * 1.6));
   const hk = Math.min(1, kills / MC.hitstopKills);
-  if (kills > 0) G.hitstop = Math.max(G.hitstop, MC.hitstopMin + (MC.hitstopMax - MC.hitstopMin) * hk);
+  if (kills > 0 && !small) G.hitstop = Math.max(G.hitstop, MC.hitstopMin + (MC.hitstopMax - MC.hitstopMin) * hk);
 }
 
 // ------------------------------------------------------------ 화염 지대 (격자 칸 단위)
-function addFire(x, y, R) {
+export function addFire(x, y, R, dur) {
   let slot = fires[0];
   for (let i = 0; i < fires.length; i++) { if (!fires[i].active) { slot = fires[i]; break; } if (fires[i].t < slot.t) slot = fires[i]; }
-  slot.active = true; slot.x = x; slot.y = y; slot.r = R * 0.85; slot.t = MC.fireDuration; slot.acc = 0;
+  slot.active = true; slot.x = x; slot.y = y; slot.r = R * 0.85; slot.t = dur || MC.fireDuration; slot.acc = 0;
 }
 
 export function updateFires(G, dt) {

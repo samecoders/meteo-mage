@@ -22,6 +22,7 @@ import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from
 import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
 import { HEROES, heroPrice, ownsHero } from './shop.js';
 import { spawnTreasure, treasureTargets, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
+import { relicChoices, applyRelic, wouldResonate, RELIC_KEYS } from './relics.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -124,7 +125,7 @@ function resume() {
 
 /** 레벨업: 카드 2장(또는 특수 3장) — 고르면 즉시 재개하고 주변 몹을 밀어냄. 레벨 5는 메테오 습득 연출 */
 function showLevelUp() {
-  if (!G.levelQueue.length) { finishLevelUps(); return; }
+  if (!G.levelQueue.length) { if (G.relicQueue.length) { G.mode = 'relic'; showRelicChoice(); } else finishLevelUps(); return; }
   const level = G.levelQueue[0];
   if (isLearnLevel(level)) { showLearn(); return; }
   const { special, cards } = cardsFor(G, level);
@@ -136,6 +137,20 @@ function showLevelUp() {
     G.levelQueue.shift();
     sfx.click();
     showLevelUp();
+  });
+}
+/** 유물 선택: 화면 위쪽 절반, 게임 정지. 고르면 주변 몹을 밀어내고 재개 */
+function showRelicChoice() {
+  if (!G.relicQueue.length) { finishLevelUps(); return; }
+  const tier = G.relicQueue[0];
+  const cards = relicChoices(G, tier);
+  if (!cards.length) { G.relicQueue.shift(); showRelicChoice(); return; }
+  sfx.chest('gold');
+  UI.showRelicChoice(tier, cards.map((k) => ({ key: k, res: wouldResonate(G, k) })), (key) => {
+    applyRelic(G, key);
+    G.relicQueue.shift();
+    sfx.click();
+    showRelicChoice();
   });
 }
 function finishLevelUps() {
@@ -198,7 +213,7 @@ async function gameOver() {
   const isBest = G.bench ? false : save.addRecord(rec);
   save.write();
   UI.showHud(false);
-  UI.showGameOver(rec, bankAdd, isBest, deathCauseText());
+  UI.showGameOver(rec, bankAdd, isBest, deathCauseText(), G.relics.slice());
   UI.showGoals(goalLines(rec, prevBest, null));
   if (G.bench) return;
   const st = save.data.settings;
@@ -232,6 +247,10 @@ function processEvents() {
       case 'manaFull': UI.manaFullFx(); sfx.manaFull(); vibrate(30); break;
       case 'dashReady': UI.dashReadyFx(); sfx.dashReady(); break;
       case 'levelup': showLevelUp(); break;
+      case 'relicChoice': showRelicChoice(); break;
+      case 'relic': UI.toast(t('relic.' + e.key + '.name'), 'legend', 'relic_' + e.key); break;
+      case 'resonance': UI.toast(t('relic.resonance') + ' ' + t('res.' + e.key), 'ruin big'); sfx.chest('ruin'); vibrate(120); break;
+      case 'phoenix': UI.toast(t('relic.phoenixRevive'), 'legend big'); sfx.learn(); vibrate(200); break;
       case 'boss': UI.toast(t('boss.appears', { name: t('boss.' + CONFIG.boss.kinds[e.kind].key) }), 'warn'); sfx.boss(); vibrate(80); break;
       case 'bossKill': UI.toast(t('boss.killed'), 'gold'); sfx.bossKill(); break;
       case 'bossCharge': sfx.charge(); break;
@@ -373,7 +392,7 @@ function frame(now) {
   renderer.end();
   const renderMs = performance.now() - r0;
 
-  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro' || G.mode === 'learn') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
+  if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'levelup' || G.mode === 'intro' || G.mode === 'learn' || G.mode === 'relic') { UI.updateHud(G, now, input); UI.updateBossArrows(G, view); }
   updateMusic(now);
   treasurePing(now);
   if (ticks) simAvg = simAvg * 0.9 + (simMs / ticks) * 0.1;
@@ -407,7 +426,7 @@ function treasurePing(now) {
 
 // ------------------------------------------------------------ 배경음악: 장면에 맞는 곡(2초 크로스페이드)
 let battleUntil = 0, slowUntil = 0;
-const IN_GAME = { play: 1, paused: 1, levelup: 1, learn: 1, intro: 1 };
+const IN_GAME = { play: 1, paused: 1, levelup: 1, learn: 1, intro: 1, relic: 1 };
 function updateMusic(now) {
   if (!audioReady() || G.bench || AUTOPLAY) return;
   const A = CONFIG.audio, inGame = !!IN_GAME[G.mode];
@@ -506,6 +525,9 @@ async function boot() {
     debugMimic: () => { if (G.mode === 'play') spawnTreasure(G, KIND_WOOD, { near: true, mimic: true }); },
     debugGold: () => { if (G.mode === 'play') spawnTreasure(G, KIND_GOLD, { near: true }); },
     debugRuin: () => { if (G.mode === 'play') spawnTreasure(G, KIND_RUIN, { near: true }); },
+    debugRelic: (key) => { if (G.mode === 'play') applyRelic(G, key); },
+    debugRelicChoice: () => { if (G.mode === 'play') { G.relicQueue.push('normal'); } },
+    relicKeys: RELIC_KEYS,
   });
 
   setupNativeApp();

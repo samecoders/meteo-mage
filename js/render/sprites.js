@@ -135,6 +135,10 @@ export function fillTop(V, alpha, G, time) {
   }
   const hero = HERO_SPR[G.hero] ?? SPR.mage;
   fillAfterimages(b, V, hero);
+  if (G.clone && G.clone.t > 0) {   // 그림자 분신(유물): 깜빡이는 잔상
+    const blink = G.clone.t < 0.6 && ((time * 12) | 0) % 2;
+    if (!blink) b.push(G.clone.x * 0.5 - V.left, G.clone.y * 0.5 - V.top, hero, G.player.flip | 8, 0, 1, 20);
+  }
   const p = G.player;
   if (p.alive) {
     const star = G.starT > 0;
@@ -148,8 +152,8 @@ export function fillTop(V, alpha, G, time) {
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
     if (!m.active || m.t < 0) continue;
-    const f = Math.min(1, m.t / m.fall), h = (1 - f) * 760;
-    b.push((m.x + h * 0.55) * 0.5 - V.left, (m.y - h) * 0.5 - V.top, spr, 0, 0, 2, 0);
+    const f = Math.min(1, m.t / m.fall), h = (1 - f) * (m.kind === 2 ? 380 : 760);
+    b.push((m.x + h * 0.55) * 0.5 - V.left, (m.y - h) * 0.5 - V.top, spr, 0, 0, m.kind === 2 ? 1 : 2, 0);
   }
 }
 
@@ -199,11 +203,12 @@ export function fillUnder(V, G, time, dashPrev) {
     b.push(sx, sy + 2, (pulse ? 9 : 8) * big, 0, col, 0, 70, 0, 0);
     b.push(sx, sy + 2, (pulse ? 11 : 10) * big, 1, col, 2, 200, 8, ((time * 30) | 0) & 255);
   }
-  const R = G.meteorRadius * 0.5;
+  const RM = G.meteorRadius * 0.5, REDC = pal(22);
   for (let i = 0; i < meteors.length; i++) {
     const m = meteors[i];
-    if (!m.active || (m.follow && m.t < 0)) continue;   // 쌍둥이 둘째 발: 떨어질 자리가 정해지기 전
+    if (!m.active || (m.follow && m.t < 0) || (m.kind === 2 && m.t < 0)) continue;   // 쌍둥이 둘째 발: 떨어질 자리가 정해지기 전
     const sx = m.x * 0.5 - V.left, sy = m.y * 0.5 - V.top;
+    const R = m.kind === 2 ? CONFIG.relics.rainRadius * 0.5 : RM, RED = m.kind === 2 ? ORANGE : REDC;
     const f = Math.max(0, m.t / m.fall);
     // 붉은 원(폭발 반경) + 남은 시간: 안쪽 테두리가 반경에서 중심으로 줄어듦
     if (CONFIG.effects.shadows[q] && m.t >= 0) b.push(sx, sy, R * (0.12 + 0.4 * f), 0, DARK, 0, (70 + 140 * f) | 0, 0, 0);

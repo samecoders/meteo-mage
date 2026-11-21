@@ -12,6 +12,7 @@ import { buyShield, buyDash, shieldPrice, dashPrice } from './shop.js';
 import { fireballs, items, KINDS } from './items.js';
 import { meteors, threatOnPlayer, escapeDir } from './meteor.js';
 import { treasureTargets } from './treasure.js';
+import { relicChoices, applyRelic } from './relics.js';
 
 let inited = false;
 const SPECIAL_PRIORITY = ['vitality', 'twin', 'dash2', 'fastFall', 'magnet', 'fire'];
@@ -31,6 +32,10 @@ function resolveLevelUps() {
       if (pick) applyCard(G, pick);
     }
     G.levelQueue.shift();
+  }
+  while (G.relicQueue.length) {   // 유물은 무작위 선택
+    const c = relicChoices(G, G.relicQueue.shift());
+    if (c.length) applyRelic(G, c[(G.rng() * c.length) | 0]);
   }
   resumePush();
   G.mode = 'play';
@@ -52,7 +57,7 @@ export function startBotGame({ seed = 1, skill = 0.8 } = {}) {
 /** 60fps 한 프레임 진행. 판이 끝나면 true */
 export function botFrame(st) {
   const p = G.player, dt = 1 / 60;
-  if (G.mode === 'levelup' || G.mode === 'learn') resolveLevelUps();
+  if (G.mode === 'levelup' || G.mode === 'learn' || G.mode === 'relic') resolveLevelUps();
   if (G.mode !== 'play') return true;
   if (st.f % st.thinkEvery === 0) think(st);
   updatePlayer(G, st.inp, dt);
@@ -76,7 +81,7 @@ export function botResult(st) {
   return {
     seed: st.seed, survived: +G.time.toFixed(1), died: !G.player.alive, deathBy: s.deathBy || '-',
     kills: s.kills, level: s.level, maxCombo: s.maxCombo, meteors: s.meteors, dashes: st.dashes, hits: st.hits, items: st.items,
-    treasures: G.stats.treasures || 0,
+    treasures: G.stats.treasures || 0, relics: G.relics.length,
     lv5: st.lvTimes[5] ?? null, lv7: st.lvTimes[7] ?? null, lv8: st.lvTimes[8] ?? null, lv10: st.lvTimes[10] ?? null,
     manaCycle: s.meteors > 1 && st.lvTimes[5] != null ? +((G.time - st.lvTimes[5]) / s.meteors).toFixed(1) : null,   // 메테오 습득 후 평균 발사 간격
     dmgTaken: { ...s.dmgTaken }, mobs: M.n,

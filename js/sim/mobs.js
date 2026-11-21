@@ -41,6 +41,9 @@ export function allocMobs(cap) {
 
 export function clearMobs() { M.n = 0; M.dead.fill(0); M.elite.fill(0); }
 
+/** 그림자 분신(유물): 이 자리 근처(r2) 몹은 법사 대신 분신을 쫓음 */
+export const LURE = { on: false, x: 0, y: 0, r2: 0 };
+
 /** 엘리트가 지키는 자리(상자 번호+1 로 찾음). gx/gy 가 NaN 이면 그냥 쫓아옴 */
 export const GUARD = { x: new Float32Array(256).fill(NaN), y: new Float32Array(256).fill(NaN), r2: 0 };
 
@@ -102,7 +105,7 @@ export function compactMobs(onDead) {
  * 몹끼리 직접 비교하지 않음. 멀리 있는 몹은 압력 생략, 너무 멀면 반대편으로 재배치.
  */
 export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
-  const n = M.n, X = M.x, Y = M.y, VX = M.vx, VY = M.vy, TY = M.type, FL = M.flash, PH = M.phase, EL = M.elite;
+  const n = M.n, X = M.x, Y = M.y, VX = M.vx, VY = M.vy, TY = M.type, FL = M.flash, PH = M.phase, EL = M.elite, lureOn = LURE.on;
   const cfg = CONFIG.mobs, smul = M.speedMul;
   // 압력은 짝/홀 몹을 번갈아 2배 세기로 계산(관성으로 부드러워짐) → 비용 절반
   const accel = cfg.accel, pk = cfg.pressureK * 2, pcap = cfg.pressureCap * 2, far = cfg.farSkip;
@@ -111,7 +114,8 @@ export function moveMobs(plx, ply, dt, spawnR, rng, parity, time) {
   const maxU = g.cols - 2, maxV = g.rows - 2;
   for (let i = 0; i < n; i++) {
     const xi = X[i], yi = Y[i];
-    const dx = plx - xi, dy = ply - yi;
+    let dx = plx - xi, dy = ply - yi;
+    if (lureOn) { const lx = LURE.x - xi, ly = LURE.y - yi; if (lx * lx + ly * ly < LURE.r2) { dx = lx; dy = ly; } }
     const d2 = dx * dx + dy * dy;
     if (d2 > desp2 && !EL[i]) { // 반대편 화면 밖으로 옮겨 다시 쫓아오게(엘리트는 상자를 지키므로 제외)
       const d = Math.sqrt(d2);

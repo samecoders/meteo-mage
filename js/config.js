@@ -250,6 +250,44 @@ export const CONFIG = {
     unitsPerMeter: 10,     // 나침반 거리 표시: 월드 10단위 = 1m
   },
 
+  // ------------------------------------------------------------ 유물 (그 판 내내, 최대 6개, 중복 없음). 그림: image/relic_<key>.png
+  relics: {
+    max: 6, choices: 3,
+    weight: { common: 5, rare: 3.5, legend: 1.5 },   // 황금 상자 선택지 등급 가중치(유적은 전설 우선)
+    list: [
+      { key: 'gravity', rarity: 'legend' },  // 중력의 핵
+      { key: 'echo',    rarity: 'legend' },  // 메아리 룬
+      { key: 'phoenix', rarity: 'legend' },  // 불사조 깃털
+      { key: 'rain',    rarity: 'legend' },  // 유성우
+      { key: 'heart',   rarity: 'rare' },    // 거인의 심장
+      { key: 'spring',  rarity: 'rare' },    // 마나의 샘
+      { key: 'shadow',  rarity: 'rare' },    // 그림자 분신
+      { key: 'comet',   rarity: 'rare' },    // 혜성 꼬리
+      { key: 'rift',    rarity: 'rare' },    // 시간 균열
+      { key: 'crown',   rarity: 'rare' },    // 탐욕의 왕관
+      { key: 'lens',    rarity: 'common' },  // 탐사자의 렌즈
+      { key: 'bolt',    rarity: 'common' },  // 분열 마법탄
+    ],
+    resonance: [
+      { key: 'gravityEcho', a: 'gravity', b: 'echo' },     // 두 번째 폭발도 몹을 끌어당김
+      { key: 'shadowComet', a: 'shadow', b: 'comet' },     // 분신이 사라질 때 폭발
+      { key: 'crownLens',   a: 'crown', b: 'lens' },       // 나무 상자가 가끔 황금 상자로
+    ],
+    gravityRange: 1.5, gravityPull: 110,        // 반경 × 1.5 안 몹을 초당 110 만큼 중심으로
+    echoDelay: 2, echoPower: 0.5, echoFall: 0.7, // 폭발 2초 뒤 같은 자리에 50% 위력(마지막 0.7초는 낙하 표시)
+    phoenixRadius: 320, phoenixPower: 60,
+    rainCount: 6, rainRadius: 55, rainPower: 1.0, rainSpread: 2.2, rainFall: 0.5,   // 폭발 반경 × 2.2 안에 작은 운석 6개
+    heartPlus: 2,
+    springEvery: 100, springMana: 5,           // 100마리마다 마력 +5%
+    shadowTime: 2, shadowLure: 320,            // 분신 2초, 이 거리 안 몹을 끌어당김
+    shadowBlastR: 130, shadowBlastPower: 1.2,  // 공명: 사라질 때 폭발(위력 = 메테오 위력 × 1.2)
+    cometTime: 3, cometR: 46, cometSteps: 4,   // 대시 경로에 불길 4개, 3초
+    riftSlow: 0.5,
+    crownMul: 2, crownMobs: 1.25,
+    lensTreasureMul: 1.4, crownLensGold: 0.25, // 공명: 나무 상자 25% 가 황금 상자로
+    boltSplitAngle: 0.55, boltSplitLife: 0.35, boltSplitDamage: 0.6,
+  },
+
   // ------------------------------------------------------------ 마법탄 (레벨 1부터 자동 발사)
   bolts: {
     max: 300,              // 풀 크기
@@ -331,7 +369,7 @@ export const CONFIG = {
     hitstopMin: 0.03,
     hitstopMax: 0.12,
     hitstopKills: 3000,    // 이 킬 수에서 최대 히트스톱
-    maxActive: 8,
+    maxActive: 24,         // 메아리·유성우 포함
   },
 
   // ------------------------------------------------------------ 마력 구슬
@@ -501,6 +539,8 @@ export const CONFIG = {
     'ui_dash', 'ui_shield', 'ui_dashup',
     'item_star', 'item_potion', 'item_heart', 'item_crystal', 'item_boots', 'item_feather', 'item_coins', 'item_scroll',
     'item_hourglass', 'item_bomb', 'item_thunder', 'item_orb', 'item_ring', 'item_lens', 'item_twin', 'item_fury',
+    'relic_gravity', 'relic_echo', 'relic_phoenix', 'relic_rain', 'relic_heart', 'relic_spring',
+    'relic_shadow', 'relic_comet', 'relic_rift', 'relic_crown', 'relic_lens', 'relic_bolt',
   ],
 
   // ------------------------------------------------------------ 평원 장식(그림만, 판정 없음)
