@@ -91,7 +91,9 @@ export function updateItemSpawner(G, dt) {
   let n = 0;
   for (let i = 0; i < items.length; i++) if (items[i].active && items[i].field) n++;
   if (n >= IC.fieldMax) return;
-  const a = G.rng() * Math.PI * 2, d = IC.distMin + G.rng() * (IC.distMax - IC.distMin);
+  const first = !G.itemFirstDone; G.itemFirstDone = true;   // 첫 아이템은 가까이
+  const d1 = first ? IC.firstDistMin : IC.distMin, d2 = first ? IC.firstDistMax : IC.distMax;
+  const a = G.rng() * Math.PI * 2, d = d1 + G.rng() * (d2 - d1);
   const it = dropItem(randomKind(G), G.player.x + Math.cos(a) * d, G.player.y + Math.sin(a) * d);
   if (it) it.field = true;
 }

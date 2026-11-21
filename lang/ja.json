@@ -223,5 +223,10 @@
   "hero.earth_sage": "大地の賢者",
   "char.earth_sage.desc": "ハート4、メテオ爆発後2秒間まわりのモンスター40%遅く、移動-8%",
   "card.range.extra": "（面積+{n}%）",
-  "card.power.extra": "（{mob}を倒せる範囲 {a}% → {b}%）"
+  "card.power.extra": "（{mob}を倒せる範囲 {a}% → {b}%）",
+  "event.warn.ring": "包囲が来る！すき間を探せ",
+  "event.warn.wolfRaid": "オオカミの群れが押し寄せる！",
+  "event.warn.golemMarch": "ゴーレムの行進が近づく！",
+  "event.warn.boss": "強い気配…ボスが来る！",
+  "event.compass": "コンパスをたどると宝があるよ"
 }

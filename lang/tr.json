@@ -223,5 +223,10 @@
   "hero.earth_sage": "Toprak Bilgesi",
   "char.earth_sage.desc": "4 kalp, patlamalar yakındaki canavarları 2 sn %40 yavaşlatır, hareket -%8",
   "card.range.extra": "(alan +%{n})",
-  "card.power.extra": "({mob} öldürme alanı %{a} → %{b})"
+  "card.power.extra": "({mob} öldürme alanı %{a} → %{b})",
+  "event.warn.ring": "Kuşatma geliyor! Boşluğu bul",
+  "event.warn.wolfRaid": "Kurt sürüsü saldırıyor!",
+  "event.warn.golemMarch": "Golem yürüyüşü yaklaşıyor!",
+  "event.warn.boss": "Güçlü bir varlık… boss geliyor!",
+  "event.compass": "Hazine için pusulayı takip et"
 }

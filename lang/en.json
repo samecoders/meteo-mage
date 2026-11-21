@@ -223,5 +223,10 @@
   "hero.earth_sage": "Earth Sage",
   "char.earth_sage.desc": "4 hearts, meteor blasts slow nearby mobs 40% for 2s, move -8%",
   "card.range.extra": "(area +{n}%)",
-  "card.power.extra": "({mob} kill zone {a}% → {b}%)"
+  "card.power.extra": "({mob} kill zone {a}% → {b}%)",
+  "event.warn.ring": "Encirclement incoming! Find the gap",
+  "event.warn.wolfRaid": "A wolf pack is charging!",
+  "event.warn.golemMarch": "A golem march approaches!",
+  "event.warn.boss": "A mighty presence… the boss is coming!",
+  "event.compass": "Follow the compass to find treasure"
 }

@@ -223,5 +223,10 @@
   "hero.earth_sage": "Erdweiser",
   "char.earth_sage.desc": "4 Herzen, Explosionen verlangsamen Monster 2 s um 40 %, Tempo -8 %",
   "card.range.extra": "(Fläche +{n} %)",
-  "card.power.extra": "({mob}-Todeszone {a} % → {b} %)"
+  "card.power.extra": "({mob}-Todeszone {a} % → {b} %)",
+  "event.warn.ring": "Einkesselung naht! Finde die Lücke",
+  "event.warn.wolfRaid": "Ein Wolfsrudel stürmt heran!",
+  "event.warn.golemMarch": "Ein Golem-Marsch naht!",
+  "event.warn.boss": "Eine mächtige Präsenz … der Boss kommt!",
+  "event.compass": "Folge dem Kompass zum Schatz"
 }

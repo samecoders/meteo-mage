@@ -223,5 +223,10 @@
   "hero.earth_sage": "大地賢者",
   "char.earth_sage.desc": "4顆愛心，隕石爆炸後2秒內周圍怪物減速40%，移動-8%",
   "card.range.extra": "（面積+{n}%）",
-  "card.power.extra": "（{mob}擊殺範圍 {a}% → {b}%）"
+  "card.power.extra": "（{mob}擊殺範圍 {a}% → {b}%）",
+  "event.warn.ring": "包圍來襲！尋找缺口",
+  "event.warn.wolfRaid": "狼群衝過來了！",
+  "event.warn.golemMarch": "魔像行軍逼近！",
+  "event.warn.boss": "強大的氣息…首領要來了！",
+  "event.compass": "跟著羅盤就能找到寶物"
 }

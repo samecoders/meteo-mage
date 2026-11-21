@@ -223,5 +223,10 @@
   "hero.earth_sage": "Sage de la terre",
   "char.earth_sage.desc": "4 cœurs, les explosions ralentissent de 40 % pendant 2 s, déplacement -8 %",
   "card.range.extra": "(surface +{n} %)",
-  "card.power.extra": "(zone létale {mob} {a} % → {b} %)"
+  "card.power.extra": "(zone létale {mob} {a} % → {b} %)",
+  "event.warn.ring": "Encerclement en approche ! Trouvez la brèche",
+  "event.warn.wolfRaid": "Une meute de loups charge !",
+  "event.warn.golemMarch": "Une marche de golems approche !",
+  "event.warn.boss": "Une présence puissante… le boss arrive !",
+  "event.compass": "Suivez la boussole pour trouver des trésors"
 }

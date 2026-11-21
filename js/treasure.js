@@ -42,6 +42,7 @@ export function spawnTreasure(G, kind, opts = {}) {
   if (!t) return null;
   const p = G.player;
   if (opts.near) { tmp[0] = p.x + 220; tmp[1] = p.y - 60; }
+  else if (kind === KIND_WOOD && !G.woodFirstDone) { G.woodFirstDone = true; placeAround(G, T.wood.firstDistMin, T.wood.firstDistMax, tmp); }   // 첫 나무 상자는 가까이
   else if (kind === KIND_WOOD) placeAround(G, T.wood.distMin, T.wood.distMax, tmp);
   else if (kind === KIND_GOLD) placeAround(G, T.gold.distMin, T.gold.distMax, tmp);
   else placeAround(G, T.ruin.distMin, T.ruin.distMax, tmp);

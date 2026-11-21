@@ -223,5 +223,10 @@
   "hero.earth_sage": "大地贤者",
   "char.earth_sage.desc": "4颗爱心，陨石爆炸后2秒内周围怪物减速40%，移动-8%",
   "card.range.extra": "（面积+{n}%）",
-  "card.power.extra": "（{mob}击杀范围 {a}% → {b}%）"
+  "card.power.extra": "（{mob}击杀范围 {a}% → {b}%）",
+  "event.warn.ring": "包围来袭！寻找缺口",
+  "event.warn.wolfRaid": "狼群冲过来了！",
+  "event.warn.golemMarch": "魔像行军逼近！",
+  "event.warn.boss": "强大的气息…首领要来了！",
+  "event.compass": "跟着罗盘就能找到宝物"
 }

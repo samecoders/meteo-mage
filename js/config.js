@@ -159,7 +159,8 @@ export const CONFIG = {
     fieldMax: 6,           // 평원에 저절로 생기는 아이템 최대 수
     everyMin: 8, everyMax: 12,   // 생성 간격(초)
     distMin: 250, distMax: 600,  // 법사에게서 떨어진 거리(월드)
-    firstAt: 6,            // 첫 아이템 생성 시각(초)
+    firstAt: 15,           // 첫 아이템 생성 시각(초) — 20초 안에 눈에 띄게 가까이
+    firstDistMin: 180, firstDistMax: 320,
     life: 30,              // 이 시간이 지나면 사라짐
     blinkLast: 5,          // 사라지기 전 깜빡이는 시간
     pickupRadius: 26,
@@ -210,6 +211,21 @@ export const CONFIG = {
     ],
   },
 
+  // ------------------------------------------------------------ 한 판의 흐름(normal 기준 목표)
+  // 0:00 슬라임 무리·마법탄 / 0:15 첫 맵 아이템(가까이) / 0:40 첫 나무 상자(가까이) / 1:00 늑대 등장·나침반 안내
+  // 1:30 전후 레벨 5 메테오 습득·포위 무리 시작(30~40초 주기) / 2:00 늑대 무리 습격·첫 고대 유적
+  // 3:00 첫 보스(이후 2분마다)·골렘 행진 / 4:00 첫 황금 상자 / 5:00~ 사건이 겹치기 시작 / 8:00 두 번째 유적 / 12:00~ 몹 5만+
+  // (보물 시각은 treasure, 아이템은 items, 포위 무리는 난이도 프리셋 spawn.ring)
+  events: {
+    warn: 2,               // 사건 2초 전 상단 경고 + 음악 전환
+    minGap: 20,            // 5분 전에는 큰 사건끼리 최소 20초 간격
+    gapUntil: 300,
+    compassHint: 60,       // 1:00 첫 보물 나침반 안내
+    boss: { first: 180, every: 120 },   // 3:00 첫 보스, 이후 2분마다(살아 있는 보스가 있으면 겹침 → 12분쯤부터 2마리)
+    wolfRaid: { first: 120, everyMin: 60, everyMax: 80, mob: 'wolf', formation: 'pack', count: 70, countPerMin: 25, countMax: 400 },
+    golemMarch: { first: 180, everyMin: 75, everyMax: 95, mob: 'golem', formation: 'line', count: 18, countPerMin: 6, countMax: 120 },
+  },
+
   // ------------------------------------------------------------ 보물 탐험 (찾아가서 열어야 하는 보물)
   // 등장 시간·거리 규칙은 모두에게 같고 위치만 판마다 무작위(시드 난수). 보상은 그 판에만 유효
   treasure: {
@@ -217,6 +233,7 @@ export const CONFIG = {
     openRadius: 30,        // 상자 위에 있다고 보는 거리
     wood: {
       first: 40, everyMin: 50, everyMax: 70, distMin: 300, distMax: 700,
+      firstDistMin: 250, firstDistMax: 400,   // 첫 나무 상자는 가까운 곳
       openTime: 1.0,       // 1초 머물면 열림(원형 게이지)
       decay: 0.5,          // 벗어나면 게이지가 초당 이만큼(비율) 줄어듦
       expPct: 0.6,         // 보상: 현재 레벨 필요 경험치의 60%

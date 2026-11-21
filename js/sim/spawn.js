@@ -10,20 +10,16 @@ const TYPE_KEYS = CONFIG.mobs.types.map((t) => t.key);
 const ROTATION = CONFIG.boss.kinds.map((k, i) => (k.special ? -1 : i)).filter((i) => i >= 0);
 
 export const spawner = {
-  ringT: 0, ringWarned: false, ringAngle: 0,
+  ringAngle: 0,
   fronts: new Float32Array(S.fronts),
   frontVel: new Float32Array(S.fronts),
-  nextBoss: CONFIG.boss.interval,
   bossIndex: 0,
   weights: new Float32Array(NT),
 };
 
 export function resetSpawner(rng) {
   for (let i = 0; i < S.fronts; i++) { spawner.fronts[i] = rng() * Math.PI * 2; spawner.frontVel[i] = 0; }
-  spawner.nextBoss = CONFIG.boss.interval;
   spawner.bossIndex = 0;
-  spawner.ringT = S.ring && S.ring.on ? S.ring.from : 1e9;
-  spawner.ringWarned = false;
 }
 
 /** 시간 t(초)의 필드 목표 몹 수 */
@@ -56,17 +52,11 @@ function weightsAt(t) {
  * 포위 무리: 법사를 빙 둘러싼 고리 모양으로 나타나 조여옴. 고리에는 항상 한 군데 틈(gapAngle 라디안).
  * warn 초 전에 'ringWarn' 이벤트(상단 경고).
  */
-function updateRing(G, rng) {
-  const R = S.ring;
-  if (!R || !R.on || G.bench) return;
-  if (!spawner.ringWarned && G.time >= spawner.ringT - R.warn) {
-    spawner.ringWarned = true;
-    spawner.ringAngle = rng() * Math.PI * 2;
-    G.events.push({ type: 'ringWarn', angle: spawner.ringAngle });
-  }
-  if (G.time < spawner.ringT) return;
-  spawner.ringT = G.time + R.everyMin + rng() * (R.everyMax - R.everyMin);
-  spawner.ringWarned = false;
+/** 포위 무리 생성(시각·경고는 js/events.js). angle: 틈 방향 */
+export function spawnRing(G, angle) {
+  const R = S.ring, rng = G.rng;
+  if (!R || !R.on) return;
+  spawner.ringAngle = angle;
   const p = G.player, w = weightsAt(G.time);
   const count = Math.min(R.countMax, Math.round(R.count + R.countPerMin * Math.max(0, G.time - R.from) / 60));
   const per = Math.ceil(count / R.rows), gap = R.gapAngle, gapAt = spawner.ringAngle;
@@ -126,16 +116,39 @@ export function updateSpawner(G, dt, spawnR) {
       budget -= size;
     }
   }
-  updateRing(G, rng);
-  // 보스 — 2분마다
-  if (!G.bench && G.time >= spawner.nextBoss) {
-    spawner.nextBoss += CONFIG.boss.interval;
-    const idx = spawner.bossIndex++;
-    const hp = CONFIG.boss.hp * Math.pow(CONFIG.boss.hpGrowth, idx);
-    const kind = ROTATION[idx % ROTATION.length];   // 미믹 같은 특수 보스는 순서에서 뺌
-    const a = rng() * Math.PI * 2;
-    if (addBoss(G.player.x + Math.cos(a) * spawnR * 0.85, G.player.y + Math.sin(a) * spawnR * 0.85, hp, kind)) {
-      G.events.push({ type: 'boss', kind });
+}
+
+/** 보스 하나(시각·경고는 js/events.js). 순서대로, 등장할 때마다 더 강하게 */
+export function spawnBoss(G) {
+  const idx = spawner.bossIndex++;
+  const hp = CONFIG.boss.hp * Math.pow(CONFIG.boss.hpGrowth, idx);
+  const kind = ROTATION[idx % ROTATION.length];   // 미믹 같은 특수 보스는 순서에서 뺌
+  const a = G.rng() * Math.PI * 2;
+  if (addBoss(G.player.x + Math.cos(a) * G.spawnR * 0.85, G.player.y + Math.sin(a) * G.spawnR * 0.85, hp, kind)) G.events.push({ type: 'boss', kind });
+}
+
+/**
+ * 습격 무리: 한 방향(angle)에서 한 종류가 몰려옴.
+ * formation 'pack' = 뭉친 무리(늑대), 'line' = 가로로 긴 행렬(골렘 행진)
+ */
+export function spawnPack(G, key, count, angle, formation) {
+  const t = TYPE_KEYS.indexOf(key), rng = G.rng, p = G.player;
+  if (t < 0) return 0;
+  const d = G.spawnR * 0.95, cx = p.x + Math.cos(angle) * d, cy = p.y + Math.sin(angle) * d;
+  const tx = -Math.sin(angle), ty = Math.cos(angle);   // 행렬 방향(진행 방향에 수직)
+  let n = 0;
+  for (let k = 0; k < count; k++) {
+    let x, y;
+    if (formation === 'line') {
+      const row = k % 3, col = (k / 3) | 0, cols = Math.ceil(count / 3);
+      const off = (col - cols / 2) * 34, back = row * 30;
+      x = cx + tx * off + Math.cos(angle) * back; y = cy + ty * off + Math.sin(angle) * back;
+    } else {
+      const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * (30 + Math.sqrt(count) * 9);
+      x = cx + Math.cos(a) * r; y = cy + Math.sin(a) * r;
     }
+    if (addMob(x, y, t, (rng() * 255) | 0) < 0) break;
+    n++;
   }
+  return n;
 }

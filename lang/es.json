@@ -223,5 +223,10 @@
   "hero.earth_sage": "Sabio de la tierra",
   "char.earth_sage.desc": "4 corazones, las explosiones ralentizan 40 % durante 2 s, movimiento -8 %",
   "card.range.extra": "(área +{n} %)",
-  "card.power.extra": "(zona letal de {mob} {a} % → {b} %)"
+  "card.power.extra": "(zona letal de {mob} {a} % → {b} %)",
+  "event.warn.ring": "¡Llega un cerco! Busca el hueco",
+  "event.warn.wolfRaid": "¡Carga una manada de lobos!",
+  "event.warn.golemMarch": "¡Se acerca una marcha de gólems!",
+  "event.warn.boss": "Una presencia poderosa… ¡llega el jefe!",
+  "event.compass": "Sigue la brújula para encontrar tesoros"
 }

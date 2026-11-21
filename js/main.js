@@ -23,6 +23,7 @@ import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
 import { HEROES, heroPrice, ownsHero } from './shop.js';
 import { spawnTreasure, treasureTargets, siege, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
 import { relicChoices, applyRelic, wouldResonate, RELIC_KEYS } from './relics.js';
+import { triggerEvent } from './events.js';
 import { killFraction, mobHpNow } from './meteor.js';
 import * as UI from './ui.js';
 
@@ -245,7 +246,9 @@ function processEvents() {
       }
       case 'launch': sfx.launch(); playJingle('call_' + G.skin.id, false, CONFIG.audio.callDuck); break;   // 모양별 메테오 징글, 음악 절반
       case 'launch2': sfx.launch(); break;
-      case 'ringWarn': UI.toast(t('ring.warn'), 'warn'); sfx.ringWarn(); vibrate(60); break;
+      case 'eventWarn':   // 사건 2초 전: 상단 경고(음악은 경고 순간 전환)
+        UI.toast(t('event.warn.' + e.kind), 'warn big'); sfx.ringWarn(); vibrate(60); break;
+      case 'compassHint': if (treasureTargets(G).length) UI.toast(t('event.compass'), 'treasure'); break;
       case 'manaFull': UI.manaFullFx(); sfx.manaFull(); vibrate(30); break;
       case 'dashReady': UI.dashReadyFx(); sfx.dashReady(); break;
       case 'levelup': showLevelUp(); break;
@@ -540,6 +543,7 @@ async function boot() {
     debugRuin: () => { if (G.mode === 'play') spawnTreasure(G, KIND_RUIN, { near: true }); },
     debugRelic: (key) => { if (G.mode === 'play') applyRelic(G, key); },
     debugRelicChoice: () => { if (G.mode === 'play') { G.relicQueue.push('normal'); } },
+    debugEvent: (k) => { if (G.mode === 'play') triggerEvent(G, k); },
     relicKeys: RELIC_KEYS,
     // 레벨업 카드 예상 효과: 범위 → 면적 +32%, 위력 → '골렘 처치 범위 62% → 81%'
     // 범위·위력 카드 설명의 숫자를 이번 증가율로(같은 카드를 거듭 고르면 줄어듦)

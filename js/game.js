@@ -11,6 +11,7 @@ import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, casti
 import { clearBolts, updateBolts } from './bolts.js';
 import { resetTreasures, updateTreasures, onEliteDead, onMimicDead } from './treasure.js';
 import { resetRelics } from './relics.js';
+import { resetEvents, updateEvents } from './events.js';
 import { LURE } from './sim/mobs.js';
 import { clearOrbs, updateOrbs } from './orbs.js';
 import { addExp, expNeed } from './upgrade.js';
@@ -85,7 +86,7 @@ export function newGame(opts) {
   G.boltT = 0; G.boltRate = BC.rate; G.boltCount = BC.count; G.boltPierce = BC.pierce;
   G.starT = 0; G.slowT = 0; G.twinT = 0; G.furyT = 0; G.magnetAll = 0;
   G.itemT = CONFIG.items.firstAt; G.orbItems = 0; G.ringItems = 0; G.lensItems = 0;
-  G.elitesAlive = 0; G.treasureMul = 1; G.compass2 = false; G.crown = false;
+  G.elitesAlive = 0; G.treasureMul = 1; G.itemFirstDone = false; G.woodFirstDone = false; G.compass2 = false; G.crown = false;
   G.dashQ = []; G.clone = { t: 0, x: 0, y: 0 }; G.springAcc = 0;
   resetRelics(G); LURE.on = false;
   G.chainN = 0; G.chainLast = -99; G.lastRingT = -99; G.raidKind = null; G.raidUntil = 0;
@@ -101,6 +102,7 @@ export function newGame(opts) {
   clearMobs(); clearBosses(); clearOrbs(); clearItems(); clearBolts(); resetMeteors(); clearEffects(); resetTreasures();
   M.hpMul = CONFIG.mobs.easeHp; M.speedMul = CONFIG.mobs.easeSpeed * CONFIG.mobs.speedMul;
   resetSpawner(G.rng);
+  resetEvents(G);
   updateZoom();
   G.mode = 'play';
 }
@@ -422,6 +424,7 @@ export function tick() {
   moveBosses(G, dt, bossHooks);
   updateZoom();
   updateSpawner(G, dt, G.spawnR);
+  updateEvents(G);
 
   let bosses = 0;
   for (let i = 0; i < B.length; i++) if (B[i].active) bosses++;

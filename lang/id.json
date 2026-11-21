@@ -223,5 +223,10 @@
   "hero.earth_sage": "Bijak Bumi",
   "char.earth_sage.desc": "4 hati, ledakan memperlambat monster sekitar 40% selama 2 dtk, gerak -8%",
   "card.range.extra": "(luas +{n}%)",
-  "card.power.extra": "(zona bunuh {mob} {a}% → {b}%)"
+  "card.power.extra": "(zona bunuh {mob} {a}% → {b}%)",
+  "event.warn.ring": "Kepungan datang! Cari celahnya",
+  "event.warn.wolfRaid": "Kawanan serigala menyerbu!",
+  "event.warn.golemMarch": "Barisan golem mendekat!",
+  "event.warn.boss": "Kehadiran kuat… bos datang!",
+  "event.compass": "Ikuti kompas untuk menemukan harta"
 }

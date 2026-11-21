@@ -223,5 +223,10 @@
   "hero.earth_sage": "대지의 현자",
   "char.earth_sage.desc": "하트 4칸, 메테오 폭발 후 2초간 주변 몹 40% 느려짐, 이동 -8%",
   "card.range.extra": "(면적 +{n}%)",
-  "card.power.extra": "({mob} 처치 범위 {a}% → {b}%)"
+  "card.power.extra": "({mob} 처치 범위 {a}% → {b}%)",
+  "event.warn.ring": "포위 무리가 온다! 틈을 찾으세요",
+  "event.warn.wolfRaid": "늑대 무리가 몰려온다!",
+  "event.warn.golemMarch": "골렘 행진이 다가온다!",
+  "event.warn.boss": "강한 기운… 보스가 온다!",
+  "event.compass": "나침반을 따라가면 보물이 있어요"
 }

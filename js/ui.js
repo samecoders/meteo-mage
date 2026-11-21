@@ -974,6 +974,11 @@ function setupDebugItems() {
     b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugItem && H.debugItem(k); });
     box.appendChild(b);
   }
+  for (const [label, k] of [['포위', 'ring'], ['늑대', 'wolfRaid'], ['골렘', 'golemMarch'], ['보스', 'boss']]) {   // 사건 바로(2초 경고 후)
+    const b = document.createElement('button'); b.textContent = label;
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); H.debugEvent(k); });
+    box.appendChild(b);
+  }
   for (const k of H.relicKeys || []) {   // 유물 바로 얻기
     const b = document.createElement('button');
     b.title = 'relic ' + k;
