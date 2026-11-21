@@ -19,7 +19,7 @@ let settingsBack = 'title', nickBack = 'title';
 const skinIcons = {};
 const heroIcons = {};
 let UIIMG = {};
-const heroSprite = (id) => (CONFIG.characters[id] || CONFIG.characters.fire_mage).sprite;
+const heroSprite = (id) => (CONFIG.characters[CONFIG.heroLegacy[id] || id] || CONFIG.characters.mage).sprite;
 /** 캐릭터 화면에서 미리 듣는 테마곡(타이틀 음악 대신). null 이면 장면 음악 */
 let charMusic = null;
 export function musicOverride() { return current === 'shop' && shopTab === 'hero' ? charMusic : null; }
@@ -572,7 +572,7 @@ export function itemIcon(key) { return itemIcons[key]; }
 // ------------------------------------------------------------ 레벨업 카드
 const CARD_ICON = { range: '◎', power: '✸', twin: '⁂', fire: '♨', magnet: '⊛', dash2: '»', fastFall: '↯', vitality: '♥', boltCount: '⁘', boltRate: '≫', boltPierce: '➶' };
 const CARD_IMG = { range: 'icon_bigmeteor', power: 'fx_explosion', twin: 'icon_multimeteor', fire: 'meteor_fire_down', magnet: 'item_magnet', dash2: 'icon_speed', fastFall: 'icon_cooldown', vitality: 'icon_hp', boltCount: 'item_orb', boltRate: 'item_feather', boltPierce: 'item_lens' };
-export function showLevelUp(level, special, cards, onPick) {
+export function showLevelUp(level, special, cards, onPick, onReroll) {
   const chest = level === 0;   // 보스 보물상자 보너스 카드
   $('lvTitle').textContent = chest ? t('chest.title') : t('levelUp');
   $('lvLevel').textContent = chest ? '' : `Lv.${level}`;
@@ -591,6 +591,12 @@ export function showLevelUp(level, special, cards, onPick) {
     let picked = false;
     b.addEventListener('click', () => { if (picked) return; picked = true; onPick(id); });
     box.appendChild(b);
+  }
+  if (onReroll) {   // 대마법사 '지혜': 한 판에 한 번 다시 뽑기
+    const rb = document.createElement('button');
+    rb.className = 'pix small reroll'; rb.textContent = '↻ ' + t('char.reroll');
+    rb.addEventListener('click', () => { rb.disabled = true; onReroll(); });
+    box.appendChild(rb);
   }
   showScreen('level');
 }
@@ -743,8 +749,8 @@ function renderMyBest(res) {
   b.textContent = t('rank.myBestSub', { kills: fmt(m.kills), n: fmt(m.records || 1) });
   box.appendChild(a); box.appendChild(b);
 }
-/** 캐릭터 아이콘: 서버 이름(fire_mage …) → 그림 */
-function heroIcon(h) { return heroIcons[h] || heroIcons.fire_mage; }
+/** 캐릭터 아이콘: 서버 이름 → 그림(예전 ID 는 새 ID 로) */
+function heroIcon(h) { return heroIcons[CONFIG.heroLegacy[h] || h] || heroIcons.mage; }
 
 /** 결과 화면: 다음 목표(최대 3줄) */
 export function showGoals(lines) {
@@ -812,7 +818,7 @@ function drawPreview(now) {
   if (!groundPat) groundPat = c.createPattern(S.ground, 'repeat');
   c.fillStyle = groundPat; c.fillRect(0, 0, W, Hh);
   if (shopTab === 'hero') {
-    const img = S[heroSprite(previewSkin || 'fire_mage')];
+    const img = S[heroSprite(previewSkin || 'mage')];
     const x = ((previewT * 30) % (W + 80)) - 20, bob = ((previewT * 6) | 0) % 2;
     c.drawImage(img, Math.round(x - img.width / 2), Math.round(Hh * 0.5 - img.height / 2 - bob));
     const sl = S.mob_slime;

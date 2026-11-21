@@ -447,14 +447,30 @@ export const CONFIG = {
   // ------------------------------------------------------------ 캐릭터 3종(보관 골드로 해금, 판을 넘어 남음)
   // 낙하 시간 공식(탈출 가능)은 캐릭터 이동 속도로 계산. 이동 속도는 항상 가장 빠른 몹(123)보다 빠름
   heroes: {
-    prices: { fire_mage: 0, frost_witch: 1500, earth_sage: 3000 },
+    prices: { mage: 0, hero_apprentice: 10000, hero_icewitch: 20000, hero_necromancer: 30000, hero_pyromancer: 40000 },
   },
+  // 예전 캐릭터 ID → 새 ID(저장값 이전·랭킹 아이콘)
+  heroLegacy: { fire_mage: 'mage', frost_witch: 'hero_icewitch', earth_sage: 'hero_necromancer' },
+  // 캐릭터 5종: 그림 image/<ID>.png(원본 픽셀 그대로, 1배). 수치는 기본 대비 배율/값
   characters: {
-    fire_mage:   { sprite: 'mage',       speed: 1.00, hearts: 3, theme: 'hero_fire' },   // 불꽃 법사(기본)
-    frost_witch: { sprite: 'mage_frost', speed: 1.08, hearts: 2, theme: 'hero_frost',
-      boltSlow: 0.7, boltSlowTime: 1 },             // 마법탄에 맞은 몹 1초간 30% 느려짐
-    earth_sage:  { sprite: 'mage_earth', speed: 0.92, hearts: 4, theme: 'hero_earth',
-      quakeSlow: 0.6, quakeTime: 2, quakeRange: 1.5 },   // 메테오 폭발 후 2초간 반경 1.5배 안 몹 40% 느려짐
+    // 푸른 대마법사(균형형) — 지혜: 한 판에 한 번 레벨업 카드 다시 뽑기
+    mage: { sprite: 'mage', speed: 1.00, hearts: 3, theme: 'hero_fire', reroll: 1 },
+    // 견습 마법사(탐험형) — 상자 여는 시간 -40%, 흡수 범위 +50%, 나침반 2개 / 약점: 마법탄 피해 -15%
+    //   호기심: 보물을 열 때마다 3초간 이동 +20%
+    hero_apprentice: { sprite: 'hero_apprentice', speed: 1.00, hearts: 3, theme: 'field',
+      openTime: 0.6, pickup: 1.5, compass2: true, boltDamage: 0.85, curiosityTime: 3, curiositySpeed: 0.2 },
+    // 얼음 마녀(질주형) — 이동 1.12, 대시 쿨타임 -20% / 약점: 하트 2
+    //   서리 발자국: 대시 경로의 몹 1.5초간 30% 느려짐(격자 칸)
+    hero_icewitch: { sprite: 'hero_icewitch', speed: 1.12, hearts: 2, theme: 'hero_frost',
+      dashCd: 0.8, frostSlow: 0.7, frostTime: 1.5, frostWidth: 48 },
+    // 강령술사(수호형) — 하트 4, 피격 후 무적 +0.5초 / 약점: 이동 0.92
+    //   영혼 수확: 메테오 한 방 500마리 이상이면 하트 1칸(20초에 한 번)
+    hero_necromancer: { sprite: 'hero_necromancer', speed: 0.92, hearts: 4, theme: 'hero_earth',
+      invulnPlus: 0.5, harvestKills: 500, harvestCd: 20 },
+    // 화염술사(대마법형) — 메테오 범위 +10%, 위력 +10% / 약점: 마력 충전 -15%, 마법탄 발사 속도 -15%
+    //   연소: 한 방 300마리 이상이면 마력 20% 환급
+    hero_pyromancer: { sprite: 'hero_pyromancer', speed: 1.00, hearts: 3, theme: 'hero_fire',
+      meteorRadius: 1.1, meteorPower: 1.1, manaRegen: 0.85, boltRate: 0.85, burnKills: 300, burnMana: 20 },
   },
 
   // ------------------------------------------------------------ 이펙트 상한 [저, 중, 고]
@@ -500,8 +516,10 @@ export const CONFIG = {
   // faceLeft: 그림이 왼쪽을 보고 있음(좌우 반전 기준을 뒤집음)
   sprites: {
     mage:             { file: 'mage.png',             size: [24, 24] },
-    mage_frost:       { file: 'mage_frost.png',       size: [24, 24], fit: true },   // 서리 마녀(없으면 법사 색 바꿈)
-    mage_earth:       { file: 'mage_earth.png',       size: [24, 24], fit: true },   // 대지의 현자
+    hero_apprentice:  { file: 'hero_apprentice.png',  size: [24, 24] },   // 캐릭터: 원본 픽셀 그대로(없으면 법사 색 바꿈)
+    hero_icewitch:    { file: 'hero_icewitch.png',    size: [24, 24] },
+    hero_necromancer: { file: 'hero_necromancer.png', size: [24, 24] },
+    hero_pyromancer:  { file: 'hero_pyromancer.png',  size: [24, 24] },
     mob_slime:        { file: 'mob_slime.png',        size: [12, 12] },
     mob_bat:          { file: 'mob_bat.png',          size: [14, 10] },
     mob_wolf:         { file: 'mob_wolf.png',         size: [16, 16] },

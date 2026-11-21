@@ -7,7 +7,7 @@ import { grid, allocGrid, buildGrid, cellX, cellY } from './sim/grid.js';
 import { resetSpawner, updateSpawner } from './sim/spawn.js';
 import { createPlayer, resetPlayer } from './player.js';
 import { isDashing } from './dash.js';
-import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer, explode, addFire } from './meteor.js';
+import { resetMeteors, launchMeteor, updateMeteors, updateFires, pushMobs, castingOnPlayer, explode, addFire, slowMobs } from './meteor.js';
 import { clearBolts, updateBolts } from './bolts.js';
 import { resetTreasures, updateTreasures, onEliteDead, onMimicDead } from './treasure.js';
 import { resetRelics } from './relics.js';
@@ -47,7 +47,7 @@ export const G = {
   // 연속 킬 콤보(2초 안에 이어지면 유지)
   chainN: 0, chainLast: -99,
   skin: skinById('fire'),
-  hero: 'fire_mage',
+  hero: 'mage',
   char: null,              // CONFIG.characters[hero]
   stats: null,
   levelQueue: [], levelUpWait: 0,
@@ -91,10 +91,12 @@ export function newGame(opts) {
   resetRelics(G); LURE.on = false;
   G.chainN = 0; G.chainLast = -99; G.lastRingT = -99; G.raidKind = null; G.raidUntil = 0;
   G.skin = skinById(opts.skin || 'fire');
-  G.hero = CONFIG.characters[opts.hero] ? opts.hero : 'fire_mage';
+  const hid = CONFIG.heroLegacy[opts.hero] || opts.hero;
+  G.hero = CONFIG.characters[hid] ? hid : 'mage';
   G.char = CONFIG.characters[G.hero];
   G.player.maxHp = G.char.hearts; G.player.hp = G.char.hearts;   // 캐릭터 시작 하트
-  M.slowMul = G.char.boltSlow || G.char.quakeSlow || 1;   // 캐릭터 둔화 배율
+  M.slowMul = G.char.frostSlow || 1;   // 캐릭터 둔화 배율(얼음 마녀 서리 발자국)
+  applyCharStart();
   G.stats = { kills: 0, maxCombo: 0, maxChain: 0, maxMobs: 0, gold: 0, level: 1, exp: 0, expNeed: expNeed(1), bossKills: 0, goldEarned: 0, dmgTaken: {}, deathBy: '', meteors: 0 };
   G.levelQueue.length = 0; G.levelUpWait = 0;
   G.shieldBought = 0; G.goldFrac = 0; G.hitstop = 0; G.dying = 0;
@@ -105,6 +107,19 @@ export function newGame(opts) {
   resetEvents(G);
   updateZoom();
   G.mode = 'play';
+}
+
+/** 캐릭터 시작 능력치(판 시작 때 한 번) */
+function applyCharStart() {
+  const c = G.char, p = G.player;
+  if (c.meteorRadius) G.meteorRadius *= c.meteorRadius;     // 화염술사: 범위·위력 +10%
+  if (c.meteorPower) G.meteorPower *= c.meteorPower;
+  if (c.boltRate) G.boltRate *= c.boltRate;                 // 화염술사: 마법탄 발사 -15%
+  if (c.compass2) G.compass2 = true;                        // 견습 마법사: 나침반 2개
+  G.rerollLeft = c.reroll || 0;                             // 대마법사: 카드 다시 뽑기 1회
+  G.curiosityT = 0; G.harvestT = 0;
+  p.maxHp = c.hearts; p.hp = c.hearts;
+  p.cdMul = c.dashCd || 1;
 }
 
 /** 레벨 5: 메테오 습득. 마력 링이 가득 찬 채로 시작 */
@@ -208,7 +223,7 @@ function hurtPlayer(dmg, src) {
   p.hp -= 1;
   p.sinceHurt = 0; p.regenT = 0;
   if (p.hp > 0) {
-    p.invuln = PC.hurtInvuln;
+    p.invuln = PC.hurtInvuln + (G.char.invulnPlus || 0);   // 강령술사: +0.5초
     pushMobs(p.x, p.y, PC.knockRadius, PC.knockImpulse);
     addRing(p.x, p.y, 8, PC.knockRadius, 0.3, pal(22), 1, 3);
     addShake(3);
@@ -289,6 +304,11 @@ function updateDashRelics(dt) {
   const RL = CONFIG.relics, q = G.dashQ;
   for (let k = 0; k < q.length; k += 4) {
     const x0 = q[k], y0 = q[k + 1], x1 = q[k + 2], y1 = q[k + 3];
+    const C = G.char;
+    if (C.frostSlow) {   // 얼음 마녀: 서리 발자국 — 대시 경로를 따라 몇 군데 원(격자 칸) 안 몹 1.5초 둔화
+      const steps = 4, ticks = Math.round(C.frostTime * CONFIG.sim.tickRate);
+      for (let s = 0; s <= steps; s++) { const f = s / steps; slowMobs(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, C.frostWidth, ticks, true); }
+    }
     if (G.R.shadow) { G.clone.t = RL.shadowTime; G.clone.x = x0; G.clone.y = y0; }
     if (G.R.comet) for (let s = 0; s < RL.cometSteps; s++) { const f = (s + 0.5) / RL.cometSteps; addFire(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, RL.cometR / 0.85, RL.cometTime); }
   }
@@ -334,6 +354,7 @@ export function tick() {
   if (G.slowT > 0) G.slowT = Math.max(0, G.slowT - dt);
   if (G.twinT > 0) G.twinT = Math.max(0, G.twinT - dt);
   if (G.furyT > 0) G.furyT = Math.max(0, G.furyT - dt);
+  if (G.curiosityT > 0) G.curiosityT = Math.max(0, G.curiosityT - dt);   // 견습 마법사: 호기심
 
   buildGrid(p.x, p.y);
   if (G.ticks % 10 === 0) reorderMobs(grid.items);   // 캐시 효율용 공간 재정렬
@@ -412,7 +433,7 @@ export function tick() {
   }
   if (p.alive && G.meteorLearned) {
     const before = G.mana;
-    const rate = (MA.regen + Math.min(MA.nearCap, MA.nearK * Math.log2(1 + near))) * (G.furyT > 0 ? CONFIG.items.furyMult : 1);
+    const rate = (MA.regen + Math.min(MA.nearCap, MA.nearK * Math.log2(1 + near))) * (G.furyT > 0 ? CONFIG.items.furyMult : 1) * (G.char.manaRegen || 1);   // 화염술사 -15%
     G.mana = Math.min(MA.max, G.mana + rate * dt + orbGain);
     if (before < MA.max && G.mana >= MA.max) G.events.push({ type: 'manaFull' });
   }

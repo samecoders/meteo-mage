@@ -444,3 +444,8 @@ input.vol { flex: 0 0 46%; max-width: 46%; height: 32px; accent-color: var(--yel
 #scrLevel #cards.three .card .cn { font-size: 15px; flex: 0 0 34%; }
 #scrLevel #cards.three .card .cd { font-size: 12px; line-height: 1.25; }
 #scrLevel .panel h2 { font-size: 20px; margin: 0; }
+
+/* 다시 뽑기 버튼(대마법사) */
+#cards .reroll { flex: 0 0 auto; align-self: center; min-height: 48px; }
+#cards:not(.three) { flex-wrap: wrap; }
+#cards:not(.three) .reroll { flex-basis: 100%; }

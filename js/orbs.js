@@ -37,8 +37,9 @@ function removeOrb(i) {
 export function updateOrbs(G, dt) {
   const p = G.player;
   const all = G.magnetAll > 0;    // 자석 아이템: 필드의 모든 구슬을 빠르게 끌어옴
-  const mag = all ? 1e6 : C.magnetRadius * Math.pow(C.magnetCardMult, G.magnetLevel);
-  const mag2 = mag * mag, pick2 = C.pickupRadius * C.pickupRadius;
+  const cm = G.char && G.char.pickup ? G.char.pickup : 1;   // 견습 마법사: 흡수 범위 +50%
+  const mag = all ? 1e6 : C.magnetRadius * Math.pow(C.magnetCardMult, G.magnetLevel) * cm;
+  const mag2 = mag * mag, pick2 = (C.pickupRadius * cm) ** 2;
   const speed = all ? C.magnetSpeed * 3 : C.magnetSpeed;
   let gained = 0;
   for (let i = 0; i < O.n; i++) {

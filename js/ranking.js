@@ -13,7 +13,7 @@ const PENDING_KEY = 'meteor_mage_pending_scores';   // 못 보낸 기록(최대 
 const OLD_PENDING_KEY = 'meteor_mage_pending_score';
 const PENDING_MAX = 5, RETRY_MS = 30000;
 /** 서버에 보내는 캐릭터 이름(4단계에서 캐릭터 3종으로 바뀔 때까지 모두 불꽃 법사) */
-export function serverHero(hero) { return ['fire_mage', 'frost_witch', 'earth_sage'].includes(hero) ? hero : 'fire_mage'; }
+export function serverHero(hero) { const id = CONFIG.heroLegacy[hero] || hero; return CONFIG.characters[id] ? id : 'mage'; }
 export function rankingEnabled() { return !!(R.supabaseUrl && R.supabaseKey); }
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -141,7 +141,7 @@ export async function fetchTop(scope, country, limit = 10) {
     const data = {
       rows: (Array.isArray(rows) ? rows : []).map((r, i) => ({
         rank: n(r.rank) || i + 1, nickname: String(r.nickname ?? ''), country: String(r.country ?? ''), kills: n(r.kills), level: n(r.level),
-        meteor_skin: String(r.meteor_skin ?? 'fire'), hero: String(r.hero ?? 'fire_mage'), mine: false,
+        meteor_skin: String(r.meteor_skin ?? 'fire'), hero: String(r.hero ?? 'mage'), mine: false,
       })),
       me: me && me.rank ? { rank: n(me.rank), kills: n(me.kills), total: n(me.total), records: n(me.my_records), nickname: String(me.nickname ?? '') } : null,
       total: me ? n(me.total) : 0,

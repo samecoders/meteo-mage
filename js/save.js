@@ -22,8 +22,8 @@ function defaults() {
     records: [],             // 내 기기 기록 상위 20개
     skinsOwned: ['fire'],
     skinEquipped: 'fire',
-    heroesOwned: ['fire_mage'],   // 해금한 캐릭터
-    heroEquipped: 'fire_mage',    // 마지막으로 고른 캐릭터
+    heroesOwned: ['mage'],        // 해금한 캐릭터
+    heroEquipped: 'mage',         // 마지막으로 고른 캐릭터
     tutorialDone: false,
     settings: {
       lang: '',
@@ -60,12 +60,15 @@ function sanitize(raw) {
     d.skinsOwned = s;
   }
   if (isStr(raw.skinEquipped) && d.skinsOwned.includes(raw.skinEquipped)) d.skinEquipped = raw.skinEquipped;
+  // 예전 캐릭터 ID 는 새 ID 로 옮김(fire_mage→mage, frost_witch→얼음 마녀, earth_sage→강령술사) — 이미 해금한 것은 가격이 올라도 유지
+  const mapHero = (x) => (CONFIG.heroLegacy[x] || x);
   if (Array.isArray(raw.heroesOwned)) {
-    const h = raw.heroesOwned.filter((x) => isStr(x) && CONFIG.characters[x]);   // 예전 꾸미기 주인공은 버림
-    if (!h.includes('fire_mage')) h.unshift('fire_mage');
+    const h = [];
+    for (const x of raw.heroesOwned) { const id = isStr(x) ? mapHero(x) : null; if (id && CONFIG.characters[id] && !h.includes(id)) h.push(id); }
+    if (!h.includes('mage')) h.unshift('mage');
     d.heroesOwned = h;
   }
-  if (isStr(raw.heroEquipped) && d.heroesOwned.includes(raw.heroEquipped)) d.heroEquipped = raw.heroEquipped;
+  if (isStr(raw.heroEquipped) && d.heroesOwned.includes(mapHero(raw.heroEquipped))) d.heroEquipped = mapHero(raw.heroEquipped);
   d.tutorialDone = raw.tutorialDone === true;
   const s = raw.settings || {};
   if (isStr(s.lang)) d.settings.lang = s.lang;

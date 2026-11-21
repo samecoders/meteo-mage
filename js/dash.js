@@ -11,7 +11,7 @@ export function dashDistance(p, G) {
   return D.distance * (1 + D.upgradePct * p.dashLevel) * grow;
 }
 /** 대시 쿨타임(바람의 깃털 1개당 -12%) */
-export function dashCooldown(p) { return D.cooldown * Math.pow(1 - CONFIG.items.featherPct, p.feathers || 0); }
+export function dashCooldown(p) { return D.cooldown * Math.pow(1 - CONFIG.items.featherPct, p.feathers || 0) * (p.cdMul || 1); }   // cdMul: 얼음 마녀 0.8
 export function isDashing(p) { return p.dashT > 0; }
 
 function dir(G, input, out) {

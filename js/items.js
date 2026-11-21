@@ -177,7 +177,7 @@ export { applyItem };
 /** 틱마다: 아이템 줍기 + 불덩이 이동·판정 */
 export function updateItems(G, dt, dashing) {
   const p = G.player;
-  const pr2 = IC.pickupRadius * IC.pickupRadius;
+  const pk = IC.pickupRadius * (G.char && G.char.pickup ? G.char.pickup : 1), pr2 = pk * pk;   // 견습 마법사 +50%
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     if (!it.active) continue;

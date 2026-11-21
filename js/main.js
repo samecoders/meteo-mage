@@ -134,12 +134,14 @@ function showLevelUp() {
   if (!cards.length) { G.levelQueue.shift(); showLevelUp(); return; }
   playJingle('levelup');
   addSpriteFx(0, 4, SPR.fx_levelup, 1, 0.9, 0, -10, false, true);
+  // 다시 뽑기: 무작위 카드(마법탄·특수)일 때만 — 범위/위력 두 장은 항상 같으므로 없음
+  const canReroll = G.rerollLeft > 0 && (special || level < CONFIG.meteor.unlockLevel);
   UI.showLevelUp(level, special, cards, (id) => {
     applyCard(G, id);
     G.levelQueue.shift();
     sfx.click();
     showLevelUp();
-  });
+  }, canReroll ? () => { G.rerollLeft--; sfx.click(); showLevelUp(); } : null);
 }
 /** 유물 선택: 화면 위쪽 절반, 게임 정지. 고르면 주변 몹을 밀어내고 재개 */
 function showRelicChoice() {
@@ -464,7 +466,7 @@ function onAudioUnlocked() {
   if (G.bench || AUTOPLAY) return;   // 측정·자동 플레이는 음악 없음
   updateMusic(performance.now());
   // 타이틀 곡 먼저, 나머지는 천천히 미리(게임 시작을 막지 않음)
-  const theme = (CONFIG.characters[save.data.heroEquipped] || CONFIG.characters.fire_mage).theme;
+  const theme = (CONFIG.characters[save.data.heroEquipped] || CONFIG.characters.mage).theme;
   setTimeout(() => preloadMusic([theme]), 1500);
   setTimeout(() => preloadMusic(['levelup', 'meteor', 'chest', 'call_' + save.data.skinEquipped]), 4000);
   setTimeout(() => preloadMusic(['relic', 'resonance', 'bossj', 'gameover']), 7000);

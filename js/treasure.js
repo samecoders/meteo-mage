@@ -127,6 +127,7 @@ function openTreasure(G, t) {
     G.events.push({ type: 'treasureOpen', kind: 'ruin', x: t.x, y: t.y, relic: 'legend' });
   }
   G.stats.treasures = (G.stats.treasures || 0) + 1;
+  if (G.char && G.char.curiosityTime) G.curiosityT = G.char.curiosityTime;   // 견습 마법사: 호기심
   close(t);
 }
 
@@ -184,7 +185,7 @@ export function updateTreasures(G, dt) {
       if (t.picked >= t.runes.length && dx * dx + dy * dy < ar * ar) openTreasure(G, t);
       continue;
     }
-    const time = t.kind === KIND_WOOD ? T.wood.openTime : T.gold.openTime;
+    const time = (t.kind === KIND_WOOD ? T.wood.openTime : T.gold.openTime) * (G.char && G.char.openTime ? G.char.openTime : 1);   // 견습 마법사 -40%
     if (t.kind === KIND_GOLD && t.elites === 0) { openTreasure(G, t); continue; }   // 엘리트를 모두 잡으면 바로 열림
     if (on) {
       t.gauge = Math.min(1, t.gauge + dt / time);
