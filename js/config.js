@@ -62,16 +62,17 @@ export const CONFIG = {
   // ghost: 무리를 통과(밀어내기 무시) + 반투명
   mobs: {
     types: [
-      { key: 'slime',      speed: 78,  hp: 6, dmg: 6,  radius: 8,  exp: 1, mass: 0.8, sprite: 'mob_slime' },
+      { key: 'slime',      speed: 78,  hp: 5, dmg: 6,  radius: 8,  exp: 1, mass: 0.8, sprite: 'mob_slime' },
       { key: 'bat',        speed: 108, hp: 2, dmg: 3,  radius: 8,  exp: 1, mass: 0.5, sprite: 'mob_bat', wobble: true },
       { key: 'wolf',       speed: 112, hp: 4, dmg: 5,  radius: 11, exp: 1, mass: 1.5, sprite: 'mob_wolf' },
       { key: 'mushroom',   speed: 56,  hp: 10, dmg: 7, radius: 9,  exp: 1, mass: 1.0, sprite: 'mob_mushroom' },
       { key: 'goblin',     speed: 104, hp: 8, dmg: 8,  radius: 10, exp: 2, mass: 1.2, sprite: 'mob_goblin' },
       { key: 'skeleton',   speed: 86,  hp: 12, dmg: 8, radius: 11, exp: 2, mass: 1.4, sprite: 'mob_skeleton' },
       { key: 'ghost',      speed: 96,  hp: 5, dmg: 5,  radius: 11, exp: 2, mass: 0,   sprite: 'mob_ghost', ghost: true },
-      { key: 'orc',        speed: 70,  hp: 30, dmg: 12, radius: 13, exp: 3, mass: 2.2, sprite: 'mob_orc' },
-      { key: 'golem',      speed: 46,  hp: 45, dmg: 15, radius: 15, exp: 4, mass: 3.0, sprite: 'mob_golem' },
-      { key: 'darkknight', speed: 108, hp: 60, dmg: 14, radius: 13, exp: 6, mass: 2.2, sprite: 'mob_darkknight' },
+      // 6단계(메테오 위력): 오크·골렘·흑기사 체력을 낮춰 위력을 올리면 한 방 처치가 가능하게(대신 hpTime 으로 점점 단단해짐)
+      { key: 'orc',        speed: 70,  hp: 16, dmg: 12, radius: 13, exp: 3, mass: 2.2, sprite: 'mob_orc' },
+      { key: 'golem',      speed: 46,  hp: 22, dmg: 15, radius: 15, exp: 4, mass: 3.0, sprite: 'mob_golem' },
+      { key: 'darkknight', speed: 108, hp: 28, dmg: 14, radius: 13, exp: 6, mass: 2.2, sprite: 'mob_darkknight' },
     ],
     accel: 0.18,           // 틱당 목표 속도로 다가가는 비율(관성)
     pressureK: 12,         // 밀도 밀어내기 힘 계수 (붐빈 칸 → 덜 붐빈 칸). 압력 = (칸의 mass 합)²
@@ -84,6 +85,8 @@ export const CONFIG = {
     easeHp: 0.5,           // 0초일 때 체력 배율
     easeSpeed: 0.72,       // 0초일 때 속도 배율
     speedMul: 1,           // 모든 몹 속도 배율(난이도 프리셋)
+    // 시간에 따른 체력 배율(초반 완화 뒤에 곱함): 3분쯤부터 가장자리 늑대·골렘이, 6분쯤부터 중간 골렘이 기본 위력에 살아남게
+    hpTime: [[0, 1], [120, 1], [180, 1.3], [360, 1.45], [540, 1.6], [720, 1.8], [900, 2]],
   },
 
   // ------------------------------------------------------------ 스폰
@@ -98,6 +101,7 @@ export const CONFIG = {
     openingTime: 10,       // 이 시간(초) 동안
     openingMargin: 50,     // 화면 가장자리에서 이만큼 바깥(월드). 화면 크기는 기기와 무관하게 9:16 로 가정
     openingAspect: 16 / 9,
+    zoomMargin: 150,       // 줌아웃 때 스폰 반경 = max(radius, 화면 반높이 + 이 값)
     perTickMax: 220,       // 한 틱에 생성할 최대 몹 수(대규모 스폰을 여러 틱에 분산)
     radius: 1100,          // 기본 스폰 반경(월드). 줌 아웃 단계에 비례해 커짐
     groupMin: 8,           // 무리 크기
@@ -347,12 +351,17 @@ export const CONFIG = {
   meteor: {
     radius: 120,           // 기본 폭발 반경 (중앙 메테오로 바꾸며 105→120: 봇 측정으로 이전 생존 시간에 맞춤)
     power: 10,             // 기본 위력(중심 피해)
-    edgeDamage: 0.5,       // 가장자리 피해 비율
+    edgeDamage: 0.4,       // 가장자리 피해 감소 비율(가장자리 피해 = 위력 × 60%)
     fallTime: 1.0,
     fastFallTime: 0.8,
     unlockLevel: 5,        // 이 레벨에 메테오 습득(그 전에는 마력 링이 숨겨지고 탭해도 아무 일 없음)
     learnTime: 3,          // 메테오 습득 안내 시간(초, 게임 정지)
     rangeCardPct: 0.15,
+    rangeCardSteps: [0.15, 0.15, 0.12, 0.1, 0.08],   // 범위 카드 n번째 증가율(같은 카드를 거듭 고를수록 줄어듦)
+    powerCardSteps: [0.3, 0.24, 0.18, 0.14, 0.1],    // 위력 카드 n번째 증가율
+    overkillRefund: 0.01,  // 오버킬 피해 1당 마력(%) 환급
+    overkillMax: 30,       // 폭발 한 번 환급 상한(마력 %)
+    killRangeMob: 'golem', // 폭발 원 안에 '이 몹도 죽는 범위' 점선 원
     powerCardPct: 0.30,
     twinDelay: 0.5,
     // 2차 수정(2026-11-20): 메테오 버튼(또는 Space)을 누른 순간 법사가 서 있는 자리에 고정해서 떨어짐. 평원 탭은 아무 일 없음

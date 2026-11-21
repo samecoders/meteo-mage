@@ -65,11 +65,18 @@ export function cardsFor(G, level) {
   return { special: false, cards: ['range', 'power'] };
 }
 
+/** 다음 범위·위력 카드의 증가율: 같은 카드를 거듭 고를수록 조금씩 줄어듦(번갈아 고르는 게 이득) */
+export function cardPct(G, id) {
+  const MC = CONFIG.meteor;
+  const steps = id === 'range' ? MC.rangeCardSteps : MC.powerCardSteps, n = id === 'range' ? G.rangeLevel : G.powerLevel;
+  return steps ? steps[Math.min(n, steps.length - 1)] : (id === 'range' ? MC.rangeCardPct : MC.powerCardPct);
+}
+
 export function applyCard(G, id) {
   const MC = CONFIG.meteor;
   switch (id) {
-    case 'range': G.meteorRadius *= 1 + MC.rangeCardPct; G.rangeLevel++; break;
-    case 'power': G.meteorPower *= 1 + MC.powerCardPct; G.powerLevel++; break;
+    case 'range': G.meteorRadius *= 1 + cardPct(G, 'range'); G.rangeLevel++; break;
+    case 'power': G.meteorPower *= 1 + cardPct(G, 'power'); G.powerLevel++; break;
     case 'twin': G.twin = true; break;
     case 'fire': G.fire = true; break;
     case 'magnet': G.magnetLevel++; break;

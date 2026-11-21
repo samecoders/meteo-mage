@@ -221,5 +221,7 @@
   "hero.frost_witch": "Frost Witch",
   "char.frost_witch.desc": "Move +8%, bolts slow mobs 30% for 1s, 2 hearts",
   "hero.earth_sage": "Earth Sage",
-  "char.earth_sage.desc": "4 hearts, meteor blasts slow nearby mobs 40% for 2s, move -8%"
+  "char.earth_sage.desc": "4 hearts, meteor blasts slow nearby mobs 40% for 2s, move -8%",
+  "card.range.extra": "(area +{n}%)",
+  "card.power.extra": "({mob} kill zone {a}% → {b}%)"
 }

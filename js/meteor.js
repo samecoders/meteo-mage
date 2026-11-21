@@ -74,6 +74,18 @@ export function escapeDir(G, m, out) {
   return true;
 }
 
+/**
+ * 이 위력으로 hp 짜리 몹이 죽는 범위(반경 대비 0~1). 피해 = 위력 × (1 - 가장자리비율 × 거리/반경)
+ */
+export function killFraction(hp, power) {
+  return Math.max(0, Math.min(1, (1 - hp / power) / MC.edgeDamage));
+}
+/** 지금 시각(새로 생기는 몹 기준) 그 종류의 체력 */
+export function mobHpNow(key) {
+  const t = CONFIG.mobs.types.find((x) => x.key === key);
+  return t ? t.hp * M.hpMul : 0;
+}
+
 /** 법사가 지금 내 메테오 반경 안에 있으면 그 메테오(가장 먼저 터지는 것), 없으면 null */
 export function threatOnPlayer(G) {
   let best = null;
@@ -175,7 +187,8 @@ export function explode(G, x, y, Rr, powerR, noSelf, small) {
   const SR = R * MC.shockRange, SR2 = SR * SR, imp = MC.shockImpulse;
   const g = grid, cs = g.cs, cols = g.cols, start = g.start, items = g.items;
   const X = M.x, Y = M.y, HP = M.hp, DEAD = M.dead, VX = M.vx, VY = M.vy, FL = M.flash, TY = M.type;
-  let kills = 0, expSum = 0;
+  let kills = 0, expSum = 0, overkill = 0;
+  const WD = M.wound;
   touchedN = 0;
   G.corpseX = x; G.corpseY = y;
 
@@ -200,9 +213,11 @@ export function explode(G, x, y, Rr, powerR, noSelf, small) {
           FL[i] = CONFIG.mobs.flashTicks;
           if (HP[i] <= 0) {
             DEAD[i] = 1; kills++; expSum += EXP[TY[i]];
+            overkill -= HP[i];                   // 남은 피해(오버킬)
             noteKill(X[i], Y[i]);
             continue;
           }
+          WD[i] = 1;                             // 살아남음: 붉게 어두워짐
           const k2 = imp * 0.6;
           VX[i] += dx / d * k2; VY[i] += dy / d * k2;
         } else { // 반경 바깥 충격파: 살짝 밀어냄
@@ -248,6 +263,12 @@ export function explode(G, x, y, Rr, powerR, noSelf, small) {
   }
 
   G.awardKills(kills, expSum, true, bossKills);
+  // 오버킬 피해의 일부를 마력으로 환급(폭발 한 번 최대 30%) — 위력 강화가 헛되지 않게
+  if (!noSelf && overkill > 0 && G.meteorLearned) {
+    const gain = Math.min(MC.overkillMax, overkill * MC.overkillRefund);
+    G.mana = Math.min(CONFIG.mana.max, G.mana + gain);
+    G.stats.refund = (G.stats.refund || 0) + gain;
+  }
   // 대지의 현자: 폭발 후 2초간 반경 1.5배 안 몹 40% 느려짐
   if (!noSelf && G.char && G.char.quakeSlow) slowMobs(x, y, R * G.char.quakeRange, Math.round(G.char.quakeTime * CONFIG.sim.tickRate));
   explosionFx(G, x, y, R, kills, small);

@@ -587,7 +587,7 @@ export function showLevelUp(level, special, cards, onPick) {
     const cimg = UIIMG[CARD_IMG[id]];
     if (cimg) b.querySelector('.ci').innerHTML = `<img src="${cimg}" alt="">`;
     b.querySelector('.cn').textContent = t(`card.${id}.name`);
-    b.querySelector('.cd').textContent = t(`card.${id}.desc`);
+    b.querySelector('.cd').textContent = (H.cardDesc ? H.cardDesc(id) : t(`card.${id}.desc`)) + (H.cardExtra ? H.cardExtra(id) : '');
     let picked = false;
     b.addEventListener('click', () => { if (picked) return; picked = true; onPick(id); });
     box.appendChild(b);

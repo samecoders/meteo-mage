@@ -221,5 +221,7 @@
   "hero.frost_witch": "霜の魔女",
   "char.frost_witch.desc": "移動+8%、魔法弾が当たったモンスターを1秒間30%遅く、ハート2",
   "hero.earth_sage": "大地の賢者",
-  "char.earth_sage.desc": "ハート4、メテオ爆発後2秒間まわりのモンスター40%遅く、移動-8%"
+  "char.earth_sage.desc": "ハート4、メテオ爆発後2秒間まわりのモンスター40%遅く、移動-8%",
+  "card.range.extra": "（面積+{n}%）",
+  "card.power.extra": "（{mob}を倒せる範囲 {a}% → {b}%）"
 }

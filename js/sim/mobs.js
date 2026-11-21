@@ -25,6 +25,7 @@ export const M = {
   cell: null,             // 격자 칸 번호(격자 만들 때 채움)
   elite: null,            // 0 = 일반, 1~ = 황금 상자 엘리트(지키는 상자 번호+1)
   slow: null,             // 둔화 남은 틱(캐릭터 능력). 배율은 slowMul
+  wound: null,            // 메테오를 맞고 살아남음(붉게 어두워짐)
   slowMul: 1,
   hpMul: 1,               // 새로 생기는 몹 체력 배율(초반 완화) — 틱에서 game.js 가 정함
   speedMul: 1,            // 모든 몹 속도 배율(초반 완화 × 시간의 모래시계)
@@ -37,11 +38,11 @@ export function allocMobs(cap) {
   M.vx = new Float32Array(cap); M.vy = new Float32Array(cap);
   M.hp = new Float32Array(cap);
   M.type = new Uint8Array(cap); M.phase = new Uint8Array(cap);
-  M.flash = new Uint8Array(cap); M.dead = new Uint8Array(cap); M.elite = new Uint8Array(cap); M.slow = new Uint8Array(cap);
+  M.flash = new Uint8Array(cap); M.dead = new Uint8Array(cap); M.elite = new Uint8Array(cap); M.slow = new Uint8Array(cap); M.wound = new Uint8Array(cap);
   M.cell = new Int32Array(cap);
 }
 
-export function clearMobs() { M.n = 0; M.dead.fill(0); M.elite.fill(0); M.slow.fill(0); }
+export function clearMobs() { M.n = 0; M.dead.fill(0); M.elite.fill(0); M.slow.fill(0); M.wound.fill(0); }
 
 /** 그림자 분신(유물): 이 자리 근처(r2) 몹은 법사 대신 분신을 쫓음 */
 export const LURE = { on: false, x: 0, y: 0, r2: 0 };
@@ -61,7 +62,7 @@ export function reorderMobs(order) {
   if (!tmpF || tmpF.length < M.cap) { tmpF = new Float32Array(M.cap); tmpU = new Uint8Array(M.cap); tmpI = new Int32Array(M.cap); }
   permF(M.x, order, n); permF(M.y, order, n); permF(M.px, order, n); permF(M.py, order, n);
   permF(M.vx, order, n); permF(M.vy, order, n); permF(M.hp, order, n);
-  permU(M.type, order, n); permU(M.phase, order, n); permU(M.flash, order, n); permU(M.dead, order, n); permU(M.elite, order, n); permU(M.slow, order, n);
+  permU(M.type, order, n); permU(M.phase, order, n); permU(M.flash, order, n); permU(M.dead, order, n); permU(M.elite, order, n); permU(M.slow, order, n); permU(M.wound, order, n);
   const c = M.cell;
   for (let k = 0; k < n; k++) tmpI[k] = c[order[k]];
   for (let k = 0; k < n; k++) c[k] = tmpI[k];
@@ -76,7 +77,7 @@ export function addMob(x, y, t, phase) {
   M.x[i] = x; M.y[i] = y; M.px[i] = x; M.py[i] = y;
   M.vx[i] = 0; M.vy[i] = 0;
   M.hp[i] = MAXHP[t] * M.hpMul;
-  M.type[i] = t; M.phase[i] = phase; M.flash[i] = 0; M.dead[i] = 0; M.elite[i] = 0; M.slow[i] = 0;
+  M.type[i] = t; M.phase[i] = phase; M.flash[i] = 0; M.dead[i] = 0; M.elite[i] = 0; M.slow[i] = 0; M.wound[i] = 0;
   return i;
 }
 
@@ -86,7 +87,7 @@ function copyMob(from, to) {
   M.vx[to] = M.vx[from]; M.vy[to] = M.vy[from];
   M.hp[to] = M.hp[from];
   M.type[to] = M.type[from]; M.phase[to] = M.phase[from];
-  M.flash[to] = M.flash[from]; M.dead[to] = M.dead[from]; M.elite[to] = M.elite[from]; M.slow[to] = M.slow[from];
+  M.flash[to] = M.flash[from]; M.dead[to] = M.dead[from]; M.elite[to] = M.elite[from]; M.slow[to] = M.slow[from]; M.wound[to] = M.wound[from];
 }
 
 /** 죽은 몹 제거. onDead(i) 는 지워지기 직전에 호출(연출용) */

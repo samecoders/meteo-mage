@@ -221,5 +221,7 @@
   "hero.frost_witch": "霜之女巫",
   "char.frost_witch.desc": "移动+8%，被魔法弹击中的怪物减速30%持续1秒，2颗爱心",
   "hero.earth_sage": "大地贤者",
-  "char.earth_sage.desc": "4颗爱心，陨石爆炸后2秒内周围怪物减速40%，移动-8%"
+  "char.earth_sage.desc": "4颗爱心，陨石爆炸后2秒内周围怪物减速40%，移动-8%",
+  "card.range.extra": "（面积+{n}%）",
+  "card.power.extra": "（{mob}击杀范围 {a}% → {b}%）"
 }

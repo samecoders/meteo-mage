@@ -221,5 +221,7 @@
   "hero.frost_witch": "서리 마녀",
   "char.frost_witch.desc": "이동 +8%, 마법탄에 맞은 몹 1초간 30% 느려짐, 하트 2칸",
   "hero.earth_sage": "대지의 현자",
-  "char.earth_sage.desc": "하트 4칸, 메테오 폭발 후 2초간 주변 몹 40% 느려짐, 이동 -8%"
+  "char.earth_sage.desc": "하트 4칸, 메테오 폭발 후 2초간 주변 몹 40% 느려짐, 이동 -8%",
+  "card.range.extra": "(면적 +{n}%)",
+  "card.power.extra": "({mob} 처치 범위 {a}% → {b}%)"
 }

@@ -15,7 +15,7 @@ import { input, initInput, updateInput, resetInput } from './input.js';
 import { updatePlayer } from './player.js';
 import { tryDash, dashPreview } from './dash.js';
 import { buyShield, buyDash } from './shop.js';
-import { cardsFor, applyCard, isLearnLevel } from './upgrade.js';
+import { cardsFor, applyCard, isLearnLevel, cardPct } from './upgrade.js';
 import { sfx, unlockAudio, setSound, suspendAudio, setVolumes, setMusicScene, duckMusic, playMusic, playJingle, preloadMusic, audioReady, setOnUnlock } from './audio.js';
 import { currentMusic } from './music.js';
 import { bench, parseBench, setupBench, benchInput, benchTick, benchFrame } from './bench.js';
@@ -23,6 +23,7 @@ import { submitScore, startPendingLoop, fetchTop } from './ranking.js';
 import { HEROES, heroPrice, ownsHero } from './shop.js';
 import { spawnTreasure, treasureTargets, siege, KIND_WOOD, KIND_GOLD, KIND_RUIN } from './treasure.js';
 import { relicChoices, applyRelic, wouldResonate, RELIC_KEYS } from './relics.js';
+import { killFraction, mobHpNow } from './meteor.js';
 import * as UI from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -540,6 +541,24 @@ async function boot() {
     debugRelic: (key) => { if (G.mode === 'play') applyRelic(G, key); },
     debugRelicChoice: () => { if (G.mode === 'play') { G.relicQueue.push('normal'); } },
     relicKeys: RELIC_KEYS,
+    // 레벨업 카드 예상 효과: 범위 → 면적 +32%, 위력 → '골렘 처치 범위 62% → 81%'
+    // 범위·위력 카드 설명의 숫자를 이번 증가율로(같은 카드를 거듭 고르면 줄어듦)
+    cardDesc: (id) => {
+      const d = t(`card.${id}.desc`);
+      if (id !== 'range' && id !== 'power') return d;
+      return d.replace(id === 'range' ? /15/ : /30/, String(Math.round(cardPct(G, id) * 100)));
+    },
+    cardExtra: (id) => {
+      const MC = CONFIG.meteor;
+      if (id === 'range') return ' ' + t('card.range.extra', { n: Math.round(((1 + cardPct(G, 'range')) ** 2 - 1) * 100) });
+      if (id !== 'power') return '';
+      const P = G.meteorPower, P2 = P * (1 + cardPct(G, 'power'));
+      for (const key of ['golem', 'darkknight', 'orc', 'skeleton', 'goblin', 'mushroom', 'slime', 'wolf']) {   // 단단한 몹부터: 처치 범위가 달라지는 첫 몹
+        const hp = mobHpNow(key), a = killFraction(hp, P), b = killFraction(hp, P2);
+        if (b > a + 0.005) return ' ' + t('card.power.extra', { mob: t('mob.' + key), a: Math.round(a * 100), b: Math.round(b * 100) });
+      }
+      return '';
+    },
   });
 
   setupNativeApp();

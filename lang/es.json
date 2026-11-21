@@ -221,5 +221,7 @@
   "hero.frost_witch": "Bruja de escarcha",
   "char.frost_witch.desc": "Movimiento +8 %, los proyectiles ralentizan 30 % durante 1 s, 2 corazones",
   "hero.earth_sage": "Sabio de la tierra",
-  "char.earth_sage.desc": "4 corazones, las explosiones ralentizan 40 % durante 2 s, movimiento -8 %"
+  "char.earth_sage.desc": "4 corazones, las explosiones ralentizan 40 % durante 2 s, movimiento -8 %",
+  "card.range.extra": "(área +{n} %)",
+  "card.power.extra": "(zona letal de {mob} {a} % → {b} %)"
 }

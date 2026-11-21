@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { SpriteBatch, ShapeBatch } from './gl.js';
 import { M, B } from '../sim/mobs.js';
 import { O } from '../orbs.js';
-import { meteors, fires, threatOnPlayer, escapeDir } from '../meteor.js';
+import { meteors, fires, threatOnPlayer, escapeDir, killFraction, mobHpNow } from '../meteor.js';
 import { SPR, FACE_LEFT } from '../assets.js';
 import { items, fireballs, KINDS, RARITY, ITEM_CHEST } from '../items.js';
 import { BT } from '../bolts.js';
@@ -41,7 +41,7 @@ export const HERO_SPR = Object.fromEntries(Object.entries(CONFIG.characters).map
 export function fillMobs(V, alpha, plx) {
   const b = batches.mobs;
   const f32 = b.f32, u32 = b.u32;
-  const n = M.n, X = M.x, Y = M.y, PX = M.px, PY = M.py, TY = M.type, PH = M.phase, FL = M.flash;
+  const n = M.n, X = M.x, Y = M.y, PX = M.px, PY = M.py, TY = M.type, PH = M.phase, FL = M.flash, WD = M.wound;
   const left = V.left, top = V.top, maxX = V.iw + 20, maxY = V.ih + 20;
   const scaleBits = (1 << 24) >>> 0;
   let o = 0;
@@ -54,7 +54,7 @@ export function fillMobs(V, alpha, plx) {
     if (sy < -20 || sy > maxY) continue;
     f32[o] = sx; f32[o + 1] = sy;
     const t = TY[i];
-    const flags = 4 | (wx > plx ? 1 : 0) | (FL[i] ? 2 : 0) | GHOST_FLAG[t];
+    const flags = 4 | (wx > plx ? 1 : 0) | (FL[i] ? 2 : 0) | GHOST_FLAG[t] | (WD[i] ? 32 : 0);
     u32[o + 2] = (t | (flags << 8) | (PH[i] << 16) | scaleBits) >>> 0;
     o += 3;
   }
@@ -215,6 +215,7 @@ export function fillUnder(V, G, time, dashPrev) {
     b.push(sx, sy, R, 0, RED, 0, m.t >= 0 ? 40 + (90 * f) | 0 : 30, 0, 0);
     b.push(sx, sy, R, 2, RED, 2, 255, 24, ((time * 40) | 0) & 255);
     if (m.t >= 0) b.push(sx, sy, Math.max(1, R * (1 - f)), 2, f > 0.7 && ((time * 12) | 0) % 2 ? WHITE : RED, 1, 255, 0, 0);
+
   }
   if (dashPrev) {
     const p = G.player;
@@ -237,6 +238,13 @@ export function fillOver(V, G, time, alpha) {
   b.reset();
   fillRings(b, V);
   fillStrikes(b, V, WHITE, YELLOW);
+  // '골렘도 죽는 범위' 점선 원 — 몹 위에 그려서 무리 속에서도 보이게(위력을 올리면 넓어짐)
+  for (let i = 0; i < meteors.length; i++) {
+    const m = meteors[i];
+    if (!m.active || m.kind === 2 || (m.follow && m.t < 0)) continue;
+    const kf = killFraction(mobHpNow(CONFIG.meteor.killRangeMob), G.meteorPower * (m.kind === 1 ? CONFIG.relics.echoPower : 1));
+    if (kf > 0.02) b.push(m.x * 0.5 - V.left, m.y * 0.5 - V.top, G.meteorRadius * 0.5 * kf, 2, YELLOW, 2, 255, 14, ((time * 25) | 0) & 255);
+  }
   // 보물 빛기둥(종류별 색) — 가까울수록 빨리 반짝임
   for (const t of treasures) {
     if (!t.active) continue;

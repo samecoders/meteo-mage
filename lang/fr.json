@@ -221,5 +221,7 @@
   "hero.frost_witch": "Sorcière du givre",
   "char.frost_witch.desc": "Déplacement +8 %, les traits ralentissent de 30 % pendant 1 s, 2 cœurs",
   "hero.earth_sage": "Sage de la terre",
-  "char.earth_sage.desc": "4 cœurs, les explosions ralentissent de 40 % pendant 2 s, déplacement -8 %"
+  "char.earth_sage.desc": "4 cœurs, les explosions ralentissent de 40 % pendant 2 s, déplacement -8 %",
+  "card.range.extra": "(surface +{n} %)",
+  "card.power.extra": "(zone létale {mob} {a} % → {b} %)"
 }

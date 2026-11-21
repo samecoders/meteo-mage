@@ -71,6 +71,7 @@ uniform vec4 u_rects[64];
 uniform float u_time;
 varying vec2 v_uv;
 varying vec3 v_fx;
+varying float v_wound;
 void main(){
   vec4 r = u_rects[int(a_info.x + 0.5)];
   float fl = a_info.y;
@@ -90,6 +91,7 @@ void main(){
   v_uv = (r.xy + vec2(cx, a_corner.y) * r.zw) / u_atlas;
   float spook = mod(floor(fl / 16.0), 2.0);
   v_fx = vec3(flash, ghost, max(fade, spook * 0.45));
+  v_wound = mod(floor(fl / 32.0), 2.0);
 }`;
 
 const BAYER = `
@@ -101,6 +103,7 @@ const FS_SPRITE = HP + BAYER + `
 uniform sampler2D u_tex;
 varying vec2 v_uv;
 varying vec3 v_fx;
+varying float v_wound;
 void main(){
   vec4 c = texture2D(u_tex, v_uv);
   if (c.a < 0.5) discard;
@@ -108,7 +111,8 @@ void main(){
     if (bayer4(gl_FragCoord.xy) < 0.5 + v_fx.z * 0.5) discard;
     c.rgb = mix(c.rgb, vec3(0.45, 0.94, 0.97), 0.55);
   } else if (v_fx.z > 0.0 && bayer4(gl_FragCoord.xy) < v_fx.z) discard;
-  if (v_fx.x > 0.5) c.rgb = vec3(1.0);
+  if (v_wound > 0.5) c.rgb = c.rgb * vec3(0.85, 0.45, 0.42);           // 메테오를 맞고 살아남은 몹: 붉게 어두워짐
+  if (v_fx.x > 0.5) c.rgb = v_wound > 0.5 ? vec3(1.0, 0.3, 0.25) : vec3(1.0);   // 맞을 때 깜빡(다친 몹은 붉게)
   gl_FragColor = vec4(c.rgb, 1.0);
 }`;
 

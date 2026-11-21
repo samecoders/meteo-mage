@@ -27,7 +27,10 @@ function resolveLevelUps() {
       const { special, cards } = cardsFor(G, lv);
       let pick = cards[0];
       if (special) { for (const id of SPECIAL_PRIORITY) if (cards.includes(id)) { pick = id; break; } }
-      else if (cards.includes('range')) pick = G.rangeLevel <= G.powerLevel ? 'range' : 'power';
+      else if (cards.includes('range')) {   // 빌드: 'alt' 번갈아(기본) / 'range' 범위만 / 'power' 위력만
+        const build = globalThis.__botBuild || 'alt';
+        pick = build === 'range' ? 'range' : build === 'power' ? 'power' : G.powerLevel <= G.rangeLevel ? 'power' : 'range';   // 번갈아: 위력부터
+      }
       else { for (const id of BOLT_PRIORITY) if (cards.includes(id)) { pick = id; break; } }
       if (pick) applyCard(G, pick);
     }
@@ -45,6 +48,7 @@ function resolveLevelUps() {
 export function startBotGame({ seed = 1, skill = 0.8, hero = 'fire_mage' } = {}) {
   if (!inited) { if (!M.x) initSim(CONFIG.sim.maxMobs); inited = true; }
   newGame({ seed, hero });
+  if (globalThis.__botGod) G.god = true;   // 측정용: 죽지 않는 봇(메테오 효율만 비교)
   return {
     seed, skill, f: 0, inp: { mx: 0, my: 0, dashHeld: false }, lx: 1, ly: 0,
     thinkEvery: Math.max(1, Math.round(6 - skill * 4)), meteors: 0, dashes: 0, hits: 0, items: 0,
@@ -81,7 +85,7 @@ export function botResult(st) {
   return {
     seed: st.seed, survived: +G.time.toFixed(1), died: !G.player.alive, deathBy: s.deathBy || '-',
     kills: s.kills, level: s.level, maxCombo: s.maxCombo, meteors: s.meteors, dashes: st.dashes, hits: st.hits, items: st.items,
-    treasures: G.stats.treasures || 0, relics: G.relics.length,
+    treasures: G.stats.treasures || 0, relics: G.relics.length, R: Math.round(G.meteorRadius), P: +G.meteorPower.toFixed(1), meteors: G.stats.meteors,
     lv5: st.lvTimes[5] ?? null, lv7: st.lvTimes[7] ?? null, lv8: st.lvTimes[8] ?? null, lv10: st.lvTimes[10] ?? null,
     manaCycle: s.meteors > 1 && st.lvTimes[5] != null ? +((G.time - st.lvTimes[5]) / s.meteors).toFixed(1) : null,   // 메테오 습득 후 평균 발사 간격
     dmgTaken: { ...s.dmgTaken }, mobs: M.n,

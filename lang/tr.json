@@ -221,5 +221,7 @@
   "hero.frost_witch": "Ayaz Cadısı",
   "char.frost_witch.desc": "Hareket +%8, mermiler canavarları 1 sn %30 yavaşlatır, 2 kalp",
   "hero.earth_sage": "Toprak Bilgesi",
-  "char.earth_sage.desc": "4 kalp, patlamalar yakındaki canavarları 2 sn %40 yavaşlatır, hareket -%8"
+  "char.earth_sage.desc": "4 kalp, patlamalar yakındaki canavarları 2 sn %40 yavaşlatır, hareket -%8",
+  "card.range.extra": "(alan +%{n})",
+  "card.power.extra": "({mob} öldürme alanı %{a} → %{b})"
 }

@@ -221,5 +221,7 @@
   "hero.frost_witch": "Penyihir Es",
   "char.frost_witch.desc": "Gerak +8%, peluru memperlambat monster 30% selama 1 dtk, 2 hati",
   "hero.earth_sage": "Bijak Bumi",
-  "char.earth_sage.desc": "4 hati, ledakan memperlambat monster sekitar 40% selama 2 dtk, gerak -8%"
+  "char.earth_sage.desc": "4 hati, ledakan memperlambat monster sekitar 40% selama 2 dtk, gerak -8%",
+  "card.range.extra": "(luas +{n}%)",
+  "card.power.extra": "(zona bunuh {mob} {a}% → {b}%)"
 }

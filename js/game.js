@@ -125,7 +125,8 @@ function updateZoom() {
   let step = V.zoomSteps[V.zoomSteps.length - 1];
   for (let i = 0; i < V.zoomSteps.length; i++) if (V.zoomSteps[i] >= need) { step = V.zoomSteps[i]; break; }
   G.zoomShort = step;
-  G.spawnR = CONFIG.spawn.radius * step / V.baseShort;
+  // 스폰 반경: 화면(9:16 가정) 가장자리 바로 밖까지만 늘림 — 줌아웃해도 법사 주변 몹 밀도가 줄지 않게(범위 강화가 손해 보지 않게)
+  G.spawnR = Math.max(CONFIG.spawn.radius, step * CONFIG.spawn.openingAspect + CONFIG.spawn.zoomMargin);
 }
 
 /**
@@ -306,6 +307,15 @@ function onDeadMob(i) {
   else addCorpse(M.x[i], M.y[i], M.type[i], M.x[i], M.y[i] - 1, false);
 }
 
+/** 시간에 따른 몹 체력 배율(CONFIG.mobs.hpTime 선형 보간) */
+export function hpTimeMul(t) {
+  const c = CONFIG.mobs.hpTime;
+  if (!c) return 1;
+  if (t <= c[0][0]) return c[0][1];
+  for (let i = 1; i < c.length; i++) if (t <= c[i][0]) return c[i - 1][1] + (c[i][1] - c[i - 1][1]) * (t - c[i - 1][0]) / (c[i][0] - c[i - 1][0]);
+  return c[c.length - 1][1];
+}
+
 /** 고정 틱 1회 */
 export function tick() {
   const dt = TICK_DT, p = G.player;
@@ -314,7 +324,7 @@ export function tick() {
   // 초반 완화(체력·속도) × 시간의 모래시계
   {
     const MB = CONFIG.mobs, f = Math.min(1, G.time / MB.easeTime);
-    M.hpMul = MB.easeHp + (1 - MB.easeHp) * f;
+    M.hpMul = (MB.easeHp + (1 - MB.easeHp) * f) * hpTimeMul(G.time);   // 초반 완화 × 시간에 따라 단단해짐
     M.speedMul = (MB.easeSpeed + (1 - MB.easeSpeed) * f) * MB.speedMul * (G.slowT > 0 ? CONFIG.items.hourglassSlow : 1)
       * (G.R.rift && castingOnPlayer() ? CONFIG.relics.riftSlow : 1);   // 시간 균열: 메테오 낙하 중 50%
   }

@@ -221,5 +221,7 @@
   "hero.frost_witch": "Bruxa do gelo",
   "char.frost_witch.desc": "Movimento +8%, disparos deixam monstros 30% mais lentos por 1 s, 2 corações",
   "hero.earth_sage": "Sábio da terra",
-  "char.earth_sage.desc": "4 corações, explosões deixam monstros próximos 40% mais lentos por 2 s, movimento -8%"
+  "char.earth_sage.desc": "4 corações, explosões deixam monstros próximos 40% mais lentos por 2 s, movimento -8%",
+  "card.range.extra": "(área +{n}%)",
+  "card.power.extra": "(zona letal de {mob} {a}% → {b}%)"
 }
